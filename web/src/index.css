@@ -1,0 +1,91 @@
+@import './styles/keela.css';
+
+/* The PWA fills the real device — no simulated iPhone frame. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  height: 100dvh;
+}
+
+body {
+  background: var(--qahwa-canvas);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* The design used fixed notch/home-indicator gaps; collapse them to real safe-area
+   insets so there's no dead whitespace on non-notched viewports. */
+.k-safetop {
+  height: max(10px, env(safe-area-inset-top));
+}
+/* Tab bar floats at the bottom of the whole app (above detail views, below sheets)
+   so opening a bucket/asset never hides it. */
+.k-tabbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 75;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+/* reserve space so scroll content (main + detail) clears the floating tab bar */
+.k-screen {
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+}
+.k-detail-bar {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+.k-lock-foot {
+  bottom: max(28px, env(safe-area-inset-bottom));
+}
+
+/* `.k-row.btn` is a native <button>; the design zeroes its top/side borders but not
+   the bottom, leaking the UA border (the dark line in Assets). Reset it fully. */
+.k-row.btn {
+  border: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Detail pages (bucket / asset / note) slide in like an iOS push. */
+.k-detail {
+  animation: kdetailin 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes kdetailin {
+  from { transform: translateX(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* Bottom sheet — keyframe-driven so the entrance never races the first paint.
+   Scrim lives on ::before so fading it doesn't fade the sheet. */
+.k-overlay {
+  background: transparent;
+}
+.k-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* fixed dark scrim — must darken in BOTH themes (fg-1 flips to cream in dark mode) */
+  background: rgba(28, 22, 17, 0.5);
+  animation: kscrim-in 270ms ease both;
+}
+.k-overlay.out::before {
+  animation: kscrim-out 240ms ease both;
+}
+.k-overlay > .k-sheet {
+  position: relative;
+  z-index: 1;
+  animation: ksheet-in 360ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.k-overlay.out > .k-sheet {
+  animation: ksheet-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes kscrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kscrim-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ksheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ksheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }

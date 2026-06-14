@@ -1,0 +1,11 @@
+{
+  "name": "keela-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node migrate.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  }
+}

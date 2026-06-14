@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Single-user finance app. Only Ahmed's authenticated account may touch anything.
+// The Firebase web config in the client is NOT a secret; THIS file is the actual gate.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Ahmed's Firebase Auth UID — the only account allowed to touch anything.
+    function isOwner() {
+      return request.auth != null
+          && request.auth.uid == "cwKmzaAtN5ZOBSUVm6T3vzxLFb82";
+    }
+
+    // Everything (including subcollections) is owner-only.
+    match /{document=**} {
+      allow read, write: if isOwner();
+    }
+  }
+}
+
+// Note: the memory `private` flag (State of Mind / counsel) is a UI contract enforced by the PWA,
+// NOT by these rules — Ahmed owns all his own data, so rules can't and shouldn't hide it from him.
