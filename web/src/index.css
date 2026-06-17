@@ -37,9 +37,10 @@ body {
   z-index: 75;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
-/* reserve space so scroll content (main + detail) clears the floating tab bar */
+/* reserve space so scroll content (main + detail) clears the floating tab bar,
+   with breathing room between the last item and the bar (~66px bar + gap) */
 .k-screen {
-  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 .k-detail-bar {
   padding-top: max(16px, env(safe-area-inset-top));

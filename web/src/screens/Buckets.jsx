@@ -75,10 +75,13 @@ function RingGrid({ goals, nav }) {
 }
 
 /* ---------- Saving: goals you're still funding, or holding untouched ---------- */
-function SavingView({ goals, profile, nav }) {
+function SavingView({ goals, allGoals, profile, nav }) {
   const s = bucketStats(goals, profile)
-  const { active, paused, fundedReady, netSavings, alloc } = s
+  const { active, paused, fundedReady } = s
   const { fundedPct, ongoingTarget, remaining, requiredMonthly, saveBudget, headroom } = s
+  // Net savings = every bucket holding money: active/paused goals, done & funded
+  // ones, and the leftovers still sitting in goals being drawn down (In-use tab).
+  const { netSavings, alloc } = bucketStats(allGoals, profile)
   const short = headroom < 0
   const pressureCol = short ? 'var(--qahwa-loss)' : 'var(--qahwa-gain)'
   const pressurePct = saveBudget > 0 ? (requiredMonthly / saveBudget) * 100 : (requiredMonthly > 0 ? 100 : 0)
@@ -214,7 +217,7 @@ export function Buckets({ data, nav, sub, setSub }) {
       <div key={sub}>
         {sub === 'inuse'
           ? <InUseView goals={inUse} nav={nav} />
-          : <SavingView goals={saving} profile={profile} nav={nav} />}
+          : <SavingView goals={saving} allGoals={goals} profile={profile} nav={nav} />}
       </div>
     </div>
   )
@@ -389,8 +392,13 @@ export function BucketSheet({ goal, mode, onClose, onSave }) {
 }
 
 const GOAL_COLORS = [
-  'var(--qahwa-accent)', 'var(--qahwa-latte)', 'var(--qahwa-brewed)',
-  'var(--qahwa-espresso)', 'var(--qahwa-bean)', 'var(--qahwa-flat)',
+  // warm / coffee
+  'var(--qahwa-accent)', '#DDA12B', 'var(--qahwa-latte)', 'var(--qahwa-brewed)',
+  // vibrant
+  '#C0453C', '#C75D88', '#9E4A82', '#6C5AA6',
+  '#3C6CA6', '#2E8B8B', '#4E8C50', '#7C8A3C',
+  // deep neutrals
+  'var(--qahwa-espresso)', 'var(--qahwa-flat)',
 ]
 
 export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
@@ -400,6 +408,8 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
   const [status, setStatus] = React.useState(goal.status || 'active')
   const [color, setColor] = React.useState(goal.color || GOAL_COLORS[0])
   const [note, setNote] = React.useState(goal.note || '')
+  // keep the goal's existing colour selectable even if it's not a preset
+  const palette = goal.color && !GOAL_COLORS.includes(goal.color) ? [goal.color, ...GOAL_COLORS] : GOAL_COLORS
   const valid = name.trim() && parseFloat(target) > 0
   return (
     <Sheet title={'Edit · ' + goal.name} onClose={onClose}>
@@ -417,7 +427,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
           <div className="k-field">
             <span className="k-label dim">Colour</span>
             <div className="k-swatchrow">
-              {GOAL_COLORS.map((c) => (
+              {palette.map((c) => (
                 <button key={c} type="button" aria-label="colour"
                   className={'k-swatchbtn' + (color === c ? ' on' : '')}
                   style={{ background: c }} onClick={() => setColor(c)} />
