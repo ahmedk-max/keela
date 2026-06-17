@@ -2,52 +2,53 @@
 
 ## Principle: one source of truth
 
-All financial data lives in **Firestore** and nowhere else. The website, the iPhone PWA, and Keela
-(terminal + phone) all read and write the *same* store. There is no second database to sync, so there
-is no drift. Finance is **cloud-only** — it no longer lives in the Obsidian vault.
+All financial data lives in **Firestore** and nowhere else. The PWA and Keela (terminal + phone) all
+read and write the *same* store. There is no second database to sync, so there is no drift. Finance is
+**cloud-only** — it no longer lives in the Obsidian vault (the vault is imported once via
+`scripts/import-keela.mjs`, then Firestore is canonical).
 
-## One brain, three faces
+## One brain, two faces
 
-A single **Firebase Functions** backend sits over Firestore and is the only thing holding secrets
-(the service-account key, the Anthropic API key, Keela's persona). It exposes:
+There is **no Firebase Functions backend and no in-app AI** (see the cost constraint — Spark plan, no
+card). The two faces touch Firestore differently:
 
-- **`/mcp`** — a remote MCP server. Consumed by **Claude Code** (terminal Keela) and the **Claude app**
-  (added as a custom connector → Keela on your phone). Tools: `get_summary`, `add_transaction`,
-  `goal_deposit`, `log_meeting`, `recent_meetings`, `check_affordability`, `update_memory`, …
-- **`/keela`** — a light Claude-API endpoint for the PWA: natural-language entry
-  ("spent 45 on coffee" → a transaction) and short dashboard insight blurbs. **No full chat.**
+- **PWA (the "seeing" face)** — reads/writes Firestore **directly** via the web SDK behind Google login.
+  Manual entry only; charts and Keela's notes/memory rendered read-only. No `/keela` endpoint, no chat.
+- **Keela (the "thinking" face)** — an **MCP bridge** (`bridge/`) over Firestore via `firebase-admin`.
+  Today it runs **locally over stdio** for **Claude Code** (terminal Keela); the same tool surface will
+  later be deployed to a free serverless tier (Cloudflare Workers / Deno Deploy) as a public HTTPS MCP
+  server so the **Claude app** can add it as a connector (phone Keela). Tools: `get_summary`,
+  `add_transaction`, `goal_deposit`, `goal_withdraw`, `log_meeting`, `recent_meetings`,
+  `check_affordability`, `read_memory`, `update_memory`, `list_goals`, `recent_transactions`.
 
 ```
                      ┌──────────────────────────┐
                      │      Firestore (data)    │   single source of truth
-                     └────────────┬─────────────┘
-                                  │ firebase-admin
-                     ┌────────────▼─────────────┐
-                     │   Firebase Functions     │   ONE BRAIN (secrets, persona)
-                     │   /mcp        /keela      │
-                     └───┬───────────┬──────────┘
-         MCP             │           │  HTTPS
-   ┌─────────────┬──────┘           └──────────┐
-┌──▼───────┐ ┌───▼────────┐          ┌──────────▼─────────┐
-│ Claude   │ │ Claude app │          │   iPhone PWA       │
-│ Code     │ │ (phone)    │          │  charts · entry ·  │
-│ = Keela  │ │ = Keela    │          │  insight blurbs    │
-└──────────┘ └────────────┘          └──────────┬─────────┘
-  terminal      connector                       │ direct reads/writes
-                                                ▼ (web SDK + Google login)
-                                          Firestore
+                     └───┬──────────────────┬───┘
+        firebase-admin   │                  │  web SDK + Google login
+            ┌────────────▼──────────┐       │
+            │  MCP bridge (bridge/)  │       │ (direct reads/writes)
+            │  stdio now · HTTPS next│       │
+            └───┬────────────┬───────┘       │
+         MCP    │            │ MCP           │
+        ┌───────▼──┐  ┌──────▼─────┐  ┌──────▼─────────────┐
+        │ Claude   │  │ Claude app │  │   iPhone PWA       │
+        │ Code     │  │ (phone)    │  │  charts · entry ·  │
+        │ = Keela  │  │ = Keela    │  │  notes (read-only) │
+        └──────────┘  └────────────┘  └────────────────────┘
+          terminal     connector (next)      "seeing" face
 ```
 
 ## Stack
 
 | Layer    | Choice |
 |----------|--------|
-| Frontend | React + Vite + Tailwind + Recharts + Framer Motion + `vite-plugin-pwa` |
+| Frontend | React + Vite + ECharts + `vite-plugin-pwa` (Qahwa design system, hand-rolled CSS) |
 | Auth     | Firebase Auth (Google), locked to one account |
-| Data     | Firestore (web SDK in the app; `firebase-admin` in Functions) |
-| Backend  | Firebase Functions (`/mcp`, `/keela`) |
-| Hosting  | Firebase Hosting (recommended) or GitHub Pages |
-| AI       | Claude API (Anthropic SDK) inside Functions |
+| Data     | Firestore (web SDK in the app; `firebase-admin` in the bridge + scripts) |
+| Backend  | **None.** MCP bridge (`bridge/`) over Firestore — stdio now, free serverless later |
+| Hosting  | GitHub Pages (auto-deploy on push to `main` via Actions) |
+| AI       | No hosted AI. Keela's intelligence is Claude Code / the Claude app via the MCP bridge |
 
 ## Security
 
@@ -71,9 +72,10 @@ Keela's register: deep night / indigo, soft glows, a faint constellation motif (
 
 ## Phases
 
-0. **(Ahmed)** Firebase project + Firestore + Google Auth + service-account key + Blaze plan.
-1. Data model + `firestore.rules` + migration script (`savor.db` → Firestore).
-2. Functions backend — `/mcp` then `/keela`.
-3. Wire Claude Code skill (`finance.md` → MCP tools) + Claude Project connector (phone Keela).
-4. React PWA — charts, manual + natural-language entry, insight blurbs, installable + offline.
-5. Deploy (Firebase Hosting).
+0. **(Ahmed)** Firebase project + Firestore + Google Auth + service-account key (Spark plan, no card). ✅
+1. Data model + `firestore.rules` + migration script (`savor.db` → Firestore). ✅
+2. React PWA — charts, manual entry, notes/memory read-only, installable + offline. ✅ (live on Pages)
+3. Import Keela's vault (`scripts/import-keela.mjs`: meetings + memory → Firestore). ✅
+4. MCP bridge (`bridge/`) — local stdio for Claude Code (terminal Keela). ✅
+5. Deploy the bridge to a free serverless tier (Cloudflare Workers / Deno Deploy) + bearer auth,
+   so the Claude app can add it as a connector (phone Keela). ← next

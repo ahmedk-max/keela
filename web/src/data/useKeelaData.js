@@ -187,7 +187,7 @@ export function buildData(raw) {
     .sort(byDateDesc)
 
   const memory = (raw.memory || []).map((m) => ({
-    id: m.id, section: m.section, private: !!m.private, body: m.body || '',
+    id: m.id, section: m.section, scope: m.scope, private: !!m.private, body: m.body || '',
   }))
 
   const wishlist = (raw.wishlist || []).map((w) => ({ id: w.id, name: w.name, amount: w.amount }))

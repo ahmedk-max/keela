@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "keela": {
+      "command": "node",
+      "args": ["bridge/keela-mcp.mjs"]
+    }
+  }
+}
