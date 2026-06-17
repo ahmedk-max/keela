@@ -578,6 +578,7 @@
 /* savings goals — horizontal rail of ring cards (full-bleed, snap) */
 .k-goalscroll { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity;
   margin: 0 calc(-1 * var(--k-pad)); padding: 2px var(--k-pad) 5px;
+  scroll-padding-inline: var(--k-pad); /* keep snap from eating the leading gutter */
   -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 .k-goalscroll::-webkit-scrollbar { width: 0; height: 0; }
 .k-goalcard { flex: 0 0 138px; scroll-snap-align: start; background: var(--qahwa-canvas);
