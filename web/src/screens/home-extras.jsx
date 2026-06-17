@@ -25,22 +25,27 @@ export function Ring({ pct, color = 'var(--qahwa-accent)', size = 46, stroke = 4
   )
 }
 
-/* ---------- Bucket rings (minimal overview) ---------- */
-export function BucketRings({ goals, onOpen }) {
+/* ---------- Savings goals (horizontal rail of ring cards) ---------- */
+export function GoalScroll({ goals, onOpen }) {
+  if (!goals.length) {
+    return <div className="k-micro" style={{ color: 'var(--qahwa-fg-3)', fontStyle: 'italic' }}>No active goals — every bucket is full.</div>
+  }
   return (
-    <div className="k-rings-open">
+    <div className="k-goalscroll">
       {goals.map((g) => {
-        const pct = Math.round((g.allocated - (g.spent || 0)) / g.target * 100)
+        const bal = Math.max(0, (g.allocated || 0) - (g.spent || 0))
+        const pct = Math.round(bal / g.target * 100)
+        const funded = g.status === 'completed' || (g.allocated || 0) >= g.target
         return (
-          <button className="k-ring-row" key={g.id} onClick={() => onOpen(g.id)}>
-            <Ring pct={pct} color={g.color} size={42} stroke={4} />
-            <span className="k-ring-mid">
-              <span className="k-ring-name">{g.name}</span>
-              <span className="k-num" style={{ fontSize: 12, fontWeight: 600, color: g.color }}>{pct}%</span>
+          <button className="k-goalcard" key={g.id} onClick={() => onOpen(g.id)}>
+            <span className="k-goalcard-ring">
+              <Ring pct={funded ? 100 : pct} color={g.color} size={66} stroke={5} />
+              {funded && <span className="k-goalcard-check" style={{ color: g.color }}>{Icons.check}</span>}
             </span>
-            <span className="k-ring-r">
-              <span className="k-num" style={{ fontSize: 13, fontWeight: 600 }}>{fmt(g.allocated)}<span className="k-sar" style={{ marginLeft: 4 }}>SAR</span></span>
-              <span className="k-num" style={{ fontSize: 11, color: 'var(--qahwa-fg-3)' }}>of {fmt(g.target)}</span>
+            <span className="k-goalcard-name">{g.name}</span>
+            <span className="k-num k-goalcard-pct" style={{ color: g.color }}>{funded ? 'Funded' : pct + '%'}</span>
+            <span className="k-num k-goalcard-amt">
+              {fmt(bal)} <span style={{ color: 'var(--qahwa-fg-3)' }}>{funded ? 'left' : '/ ' + fmt(g.target)}</span>
             </span>
           </button>
         )
@@ -49,53 +54,33 @@ export function BucketRings({ goals, onOpen }) {
   )
 }
 
-/* ---------- Cashflow river (compact Sankey) ---------- */
-export function CashflowRiver({ income, fixed, subs, variable }) {
-  const expenses = fixed + subs + variable
-  const savings = Math.max(0, income - expenses)
-  const total = income || 1
-  const W = 340, H = 176, padY = 6, gap = 3
-  const innerH = H - padY * 2
-  const sc = (v) => v / total * innerH
-  const xInc = [6, 20], xExp = [156, 168], xOut = [322, 336]
-
-  const incSav = { y: padY, h: sc(savings) }
-  const incExp = { y: padY + sc(savings), h: sc(expenses) }
-
-  let oy = padY
-  const oSav = { y: oy, h: sc(savings) }; oy += oSav.h + gap
-  const oFix = { y: oy, h: sc(fixed) }; oy += oFix.h + gap
-  const oSub = { y: oy, h: sc(subs) }; oy += oSub.h + gap
-  const oVar = { y: oy, h: sc(variable) }
-
-  const expNode = { y: oFix.y, h: sc(expenses) }
-  let ey = expNode.y
-  const eFix = { y: ey, h: sc(fixed) }; ey += eFix.h
-  const eSub = { y: ey, h: sc(subs) }; ey += eSub.h
-  const eVar = { y: ey, h: sc(variable) }
-
-  const ribbon = (x1, s1, x2, s2, fill, op) => {
-    const mx = (x1 + x2) / 2
-    const d = `M${x1} ${s1.y} C${mx} ${s1.y} ${mx} ${s2.y} ${x2} ${s2.y} L${x2} ${(s2.y + s2.h)} C${mx} ${(s2.y + s2.h)} ${mx} ${(s1.y + s1.h)} ${x1} ${(s1.y + s1.h)} Z`
-    return <path d={d} fill={fill} opacity={op} />
-  }
-  const node = (x, n, fill) => <rect x={x[0]} y={n.y} width={x[1] - x[0]} height={Math.max(1, n.h)} fill={fill} />
-  const G = 'var(--qahwa-gain)', R = 'var(--qahwa-loss)', A = 'var(--qahwa-accent)', B = 'var(--qahwa-brewed)', E = 'var(--qahwa-espresso)'
-
+/* ---------- Runway bar (liquid vs earmarked split of net worth) ---------- */
+export function RunwayBar({ liquid, segs }) {
+  const total = liquid + segs.reduce((s, g) => s + g.bal, 0) || 1
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-      {ribbon(xInc[1], incSav, xOut[0], oSav, G, 0.3)}
-      {ribbon(xInc[1], incExp, xExp[0], expNode, R, 0.26)}
-      {ribbon(xExp[1], eFix, xOut[0], oFix, R, 0.34)}
-      {ribbon(xExp[1], eSub, xOut[0], oSub, A, 0.42)}
-      {ribbon(xExp[1], eVar, xOut[0], oVar, B, 0.4)}
-      {node(xInc, { y: padY, h: innerH }, E)}
-      {node(xExp, expNode, R)}
-      {node(xOut, oSav, G)}
-      {node(xOut, oFix, R)}
-      {node(xOut, oSub, A)}
-      {node(xOut, oVar, B)}
-    </svg>
+    <div className="k-flowbar">
+      <div className="k-flowbar-seg" style={{ width: (liquid / total * 100) + '%', background: 'var(--qahwa-gain)' }} />
+      {segs.map((g) => (
+        <div key={g.id} className="k-flowbar-seg" style={{ width: (g.bal / total * 100) + '%', background: g.color }} />
+      ))}
+    </div>
+  )
+}
+
+/* ---------- Cashflow bar (income split: saved / expenses / variable) ---------- */
+export function CashflowRiver({ saved, expenses, variable }) {
+  const total = Math.max(0, saved) + expenses + variable || 1
+  const segs = [
+    { v: Math.max(0, saved), c: 'var(--qahwa-gain)' },
+    { v: expenses, c: 'var(--qahwa-loss)' },
+    { v: variable, c: 'var(--qahwa-brewed)' },
+  ].filter((s) => s.v > 0)
+  return (
+    <div className="k-flowbar">
+      {segs.map((s, i) => (
+        <div key={i} className="k-flowbar-seg" style={{ width: (s.v / total * 100) + '%', background: s.c }} />
+      ))}
+    </div>
   )
 }
 
@@ -121,9 +106,9 @@ export function IncomeSettingsSheet({ profile, income, onClose, onSave }) {
           <span className="k-num" style={{ fontSize: 12, fontWeight: 600 }}>{fmt(recTotal)}<span className="k-sar" style={{ marginLeft: 4 }}>/mo</span></span>
         </div>
         {streams.map((s, i) => (
-          <div key={s.id} style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-            <input className="k-input" style={{ flex: 1, padding: '10px' }} placeholder="Name" value={s.name} onChange={(e) => setField(i, 'name', e.target.value)} />
-            <input className="k-input k-num" style={{ width: 96, padding: '10px', textAlign: 'right' }} inputMode="numeric" placeholder="0" value={s.amount} onChange={(e) => setField(i, 'amount', num(e.target.value))} />
+          <div key={s.id} style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+            <input className="k-input" style={{ flex: 1 }} placeholder="Name" value={s.name} onChange={(e) => setField(i, 'name', e.target.value)} />
+            <input className="k-input k-num" style={{ width: 104, textAlign: 'right' }} inputMode="numeric" placeholder="0" value={s.amount} onChange={(e) => setField(i, 'amount', num(e.target.value))} />
             <button className="k-iconbtn ico danger" title="Remove" onClick={() => removeStream(i)}>{Icons.trash}</button>
           </div>
         ))}
@@ -146,7 +131,7 @@ export function IncomeSettingsSheet({ profile, income, onClose, onSave }) {
         <input className="k-input k-num" inputMode="numeric" value={payday} onChange={(e) => setPayday(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} />
       </div>
 
-      <button className="k-btn accent full" style={{ marginTop: 22 }}
+      <button className="k-btn accent full" style={{ marginTop: 18 }}
         onClick={() => { onSave(
           { ...profile, payday: parseInt(payday, 10) || profile.payday, split: { save: saveNum, live: 100 - saveNum } },
           streams.map((s) => ({ ...s, amount: num(s.amount), name: s.name.trim() || 'Income' })),

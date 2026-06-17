@@ -34,9 +34,16 @@
   --qahwa-bean:       #4A2E20;
 }
 
-/* ---------- Density ---------- */
-:root { --k-pad: 16px; --k-row-y: 12px; --k-gap: 16px; }
-[data-density="compact"] { --k-pad: 13px; --k-row-y: 8px; --k-gap: 12px; }
+/* ---------- Density & rhythm ----------
+   One spacing scale drives the whole app. --k-pad is the screen gutter (iOS-
+   comfortable), --k-sec the gap between top-level sections, --k-tap the minimum
+   touch target. Even "compact" keeps real breathing room. */
+:root {
+  --k-pad: 20px; --k-row-y: 13px; --k-gap: 16px; --k-sec: 30px; --k-tap: 44px;
+}
+[data-density="compact"] {
+  --k-pad: 18px; --k-row-y: 11px; --k-gap: 14px; --k-sec: 26px; --k-tap: 44px;
+}
 
 /* =========================================================================
    Reset / shell
@@ -44,8 +51,10 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 .k-root { height: 100%; position: relative; overflow: hidden;
+  color-scheme: light; /* native date/time pickers + scrollbars follow the theme */
   background: var(--qahwa-canvas);
   transition: background var(--qahwa-motion-base) var(--qahwa-ease); }
+.k-root[data-theme="dark"] { color-scheme: dark; }
 
 .k-app {
   height: 100%;
@@ -89,9 +98,17 @@
    ========================================================================= */
 .k-screen { padding-bottom: 28px; }
 .k-head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  padding: 8px var(--k-pad) 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px calc(var(--k-pad) - 4px) 10px var(--k-pad);
+  min-height: 52px;
 }
+/* header icon button — full touch target, optically aligned to the edge */
+.k-icontap { width: var(--k-tap); height: var(--k-tap); display: grid; place-items: center;
+  background: transparent; border: 0; cursor: pointer; color: var(--qahwa-fg-2);
+  -webkit-appearance: none; appearance: none;
+  transition: color var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-icontap:active { color: var(--qahwa-fg-1); }
+.k-icontap svg { width: 20px; height: 20px; display: block; }
 .k-head-l { display: flex; flex-direction: column; gap: 5px; }
 .k-title { font: 600 26px/1.05 var(--qahwa-font-ui); letter-spacing: -0.02em;
   color: var(--qahwa-fg-1); }
@@ -121,26 +138,20 @@
 .k-stat-cap { font: 500 10px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-3);
   letter-spacing: 0.02em; }
 
-/* hover edit/delete on list items */
-.k-card-tr { position: relative; min-width: 64px; height: 18px; display: flex;
-  align-items: center; justify-content: flex-end; }
-.k-card-acts { position: absolute; top: -3px; right: 0; display: flex; gap: 6px;
-  opacity: 0; pointer-events: none; transition: opacity var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-bucket-card:hover .k-card-acts { opacity: 1; pointer-events: auto; }
-.k-bucket-card:hover .k-card-status { opacity: 0; }
-.k-card-status { transition: opacity var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-bucket-card { transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-bucket-card:active { background: var(--qahwa-surface); }
 .k-iconbtn { font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.08em;
   text-transform: uppercase; padding: 5px 7px; border: 1px solid var(--qahwa-border-strong);
   background: var(--qahwa-canvas); color: var(--qahwa-fg-2); cursor: pointer; }
 .k-iconbtn:hover { background: var(--qahwa-surface); color: var(--qahwa-fg-1); }
 .k-iconbtn.danger:hover { color: var(--qahwa-loss); border-color: var(--qahwa-loss); }
-.k-iconbtn.ico { padding: 0; width: 28px; height: 28px; display: inline-flex;
+.k-iconbtn.ico { padding: 0; width: 40px; height: 40px; display: inline-flex;
   align-items: center; justify-content: center; }
-.k-iconbtn.ico svg { width: 15px; height: 15px; display: block; }
+.k-iconbtn.ico svg { width: 16px; height: 16px; display: block; }
 
-.k-sec { padding: 0 var(--k-pad); margin-top: 24px; }
+.k-sec { padding: 0 var(--k-pad); margin-top: var(--k-sec); }
 .k-sec-head { display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 10px; }
+  margin-bottom: 12px; }
 
 /* =========================================================================
    Primitives
@@ -150,7 +161,7 @@
 
 .k-btn {
   font: 500 12px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
-  padding: 12px 14px; border: 1px solid var(--qahwa-border-strong);
+  min-height: 48px; padding: 12px 16px; border: 1px solid var(--qahwa-border-strong);
   background: var(--qahwa-canvas); color: var(--qahwa-fg-1);
   cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
@@ -165,7 +176,7 @@
   color: var(--qahwa-canvas); }
 .k-btn.ghost { background: transparent; border-color: var(--qahwa-border); color: var(--qahwa-fg-2); }
 .k-btn.full { width: 100%; }
-.k-btn.sm { padding: 8px 10px; font-size: 11px; }
+.k-btn.sm { min-height: 38px; padding: 8px 12px; font-size: 11px; }
 
 .k-tag {
   font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.1em; text-transform: uppercase;
@@ -177,16 +188,26 @@
 .k-tag.em   { color: var(--qahwa-accent); border-color: var(--qahwa-accent); }
 .k-tag.mute { color: var(--qahwa-fg-3); border-color: var(--qahwa-border); }
 
-/* category monogram square (our "icon") */
+/* category / entry badge (icon tile) */
 .k-sq {
-  width: 36px; height: 36px; flex: none;
+  width: 38px; height: 38px; flex: none;
   border: 1px solid var(--qahwa-border-strong);
   display: grid; place-items: center;
   font: 600 11px/1 var(--qahwa-font-data); letter-spacing: 0.04em;
   color: var(--qahwa-fg-2); background: var(--qahwa-canvas);
   position: relative;
 }
-[data-density="compact"] .k-sq { width: 30px; height: 30px; font-size: 10px; }
+[data-density="compact"] .k-sq { width: 34px; height: 34px; font-size: 10px; }
+.k-sq svg { width: 19px; height: 19px; display: block; }
+[data-density="compact"] .k-sq svg { width: 18px; height: 18px; }
+/* coloured variant — set --c to the category/entry colour */
+.k-sq.tinted {
+  border-color: color-mix(in srgb, var(--c) 32%, var(--qahwa-border));
+  background: color-mix(in srgb, var(--c) 13%, var(--qahwa-canvas));
+  color: var(--c);
+}
+.k-sq.tinted.dashed { border-style: dashed; background: transparent; color: var(--qahwa-fg-3); }
+.k-sq.tinted img { width: 20px; height: 20px; display: block; object-fit: contain; }
 
 /* keela ember dot marker */
 .k-ember { width: 6px; height: 6px; flex: none; background: var(--qahwa-accent);
@@ -223,9 +244,13 @@
 
 /* day group header */
 .k-day { display: flex; align-items: baseline; justify-content: space-between;
-  padding: 17px var(--k-pad) 9px; position: sticky; top: 0; z-index: 2;
-  background: var(--qahwa-canvas); border-top: 1px solid var(--qahwa-border); }
+  padding: 18px var(--k-pad) 7px; position: sticky; top: 0; z-index: 2;
+  background: var(--qahwa-canvas); }
 .k-day .k-label { color: var(--qahwa-fg-2); }
+.k-addlink { background: transparent; border: 0; cursor: pointer; padding: 4px 0 4px 12px; margin: -4px 0;
+  font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--qahwa-accent); -webkit-appearance: none; appearance: none; }
+.k-addlink:active { color: var(--qahwa-accent-press); }
 .k-day-tot { font: 500 11px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); }
 
 /* key-value grid */
@@ -321,17 +346,49 @@
 .k-legend-row:first-child { border-top: 0; }
 .k-swatch { width: 10px; height: 10px; flex: none; }
 
+/* cashflow stacked bar — compact income allocation on Home */
+.k-flowbar { height: 16px; display: flex; overflow: hidden;
+  border: 1px solid var(--qahwa-border-strong); background: var(--qahwa-surface-sunk); }
+.k-flowbar-seg { min-width: 2px; transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
+.k-flowbar-seg + .k-flowbar-seg { border-left: 1px solid var(--qahwa-canvas); }
+
+/* =========================================================================
+   Spending analytics — pace chart, legend, category breakdown
+   ========================================================================= */
+.k-chartleg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+.k-chartleg span { display: inline-flex; align-items: center; gap: 6px;
+  font: 400 10px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-3); }
+.k-chartleg-sw { width: 13px; height: 0; border-top: 2px solid; align-self: center; }
+.k-chartleg-sw.cur { border-color: var(--qahwa-accent); }
+.k-chartleg-sw.prev { border-color: var(--qahwa-fg-3); }
+.k-chartleg-sw.bud { border-top-style: dashed; border-color: var(--qahwa-border-strong); }
+.k-chartleg-sw.bar { width: 9px; height: 9px; border-top: 0; background: var(--qahwa-accent); }
+
+.k-catbars { display: flex; flex-direction: column; gap: 12px; }
+.k-catbar { display: flex; align-items: center; gap: 9px; }
+.k-catbar-dot { width: 8px; height: 8px; flex: none; }
+.k-catbar-name { width: 82px; flex: none; font: 500 12px/1.2 var(--qahwa-font-ui);
+  color: var(--qahwa-fg-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-catbar-track { flex: 1; height: 6px; background: var(--qahwa-surface-sunk); position: relative; overflow: hidden; }
+.k-catbar-track > i { position: absolute; inset: 0 auto 0 0; display: block;
+  transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
+.k-catbar-val { min-width: 46px; text-align: right; font: 500 12px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1); }
+.k-catbar-pct { min-width: 30px; text-align: right; font: 500 10px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); }
+
 /* =========================================================================
    Segmented control
    ========================================================================= */
-.k-seg { display: flex; border: 1px solid var(--qahwa-border-strong); }
-.k-seg-item { flex: 1; padding: 9px 4px; text-align: center; cursor: pointer;
-  font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--qahwa-fg-2); background: var(--qahwa-canvas);
-  border-right: 1px solid var(--qahwa-border);
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-seg-item:last-child { border-right: 0; }
-.k-seg-item.on { background: var(--qahwa-fg-1); color: var(--qahwa-canvas); }
+/* iOS-style segmented control — inset track, raised selected tile. */
+.k-seg { display: flex; gap: 3px; padding: 3px;
+  background: var(--qahwa-surface-sunk); border: 1px solid var(--qahwa-border); }
+.k-seg-item { flex: 1; min-height: 38px; padding: 0 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--qahwa-fg-2); background: transparent; border: 0;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
+              color var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-seg-item.on { background: var(--qahwa-canvas); color: var(--qahwa-fg-1);
+  box-shadow: 0 1px 2px rgba(28, 22, 17, 0.14); }
 
 /* =========================================================================
    Bottom tab bar
@@ -354,13 +411,22 @@
    ========================================================================= */
 .k-overlay { position: absolute; inset: 0; z-index: 80; display: flex; flex-direction: column;
   justify-content: flex-end; background: color-mix(in srgb, var(--qahwa-fg-1) 32%, transparent); }
+/* Entrance/exit animation lives in index.css (.k-overlay > .k-sheet). */
 .k-sheet { background: var(--qahwa-canvas); border-top: 1px solid var(--qahwa-border-strong);
-  max-height: 88%; display: flex; flex-direction: column;
-  transform: translateY(100%); transition: transform 220ms var(--qahwa-ease); }
-.k-sheet.in { transform: translateY(0); }
-.k-sheet-head { display: flex; align-items: center; justify-content: space-between;
-  padding: 16px var(--k-pad); border-bottom: 1px solid var(--qahwa-border); }
-.k-sheet-body { overflow-y: auto; padding: 4px var(--k-pad) 24px; }
+  max-height: 92%; display: flex; flex-direction: column; }
+.k-sheet-grab { width: 36px; height: 4px; flex: none; margin: 8px auto 0;
+  background: var(--qahwa-border-strong); }
+.k-sheet-head { display: flex; align-items: center; gap: 12px;
+  padding: 6px var(--k-pad) 11px; border-bottom: 1px solid var(--qahwa-border); }
+.k-sheet-title { flex: 1; min-width: 0; font: 600 15px/1.25 var(--qahwa-font-ui);
+  letter-spacing: -0.01em; color: var(--qahwa-fg-1); }
+.k-sheet-cancel { flex: none; background: transparent; border: 0; cursor: pointer;
+  min-height: var(--k-tap); padding: 0 2px; margin-right: -2px;
+  font: 500 14px/1 var(--qahwa-font-ui); color: var(--qahwa-accent);
+  -webkit-appearance: none; appearance: none; }
+.k-sheet-cancel:active { color: var(--qahwa-accent-press); }
+.k-sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 6px var(--k-pad) calc(20px + env(safe-area-inset-bottom)); }
 
 /* full-screen detail page (pushed) */
 .k-detail { position: absolute; inset: 0; z-index: 70; background: var(--qahwa-canvas);
@@ -374,18 +440,44 @@
 /* =========================================================================
    Inputs
    ========================================================================= */
-.k-field { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
-.k-input { border: 0; border-bottom: 1.5px solid var(--qahwa-border-strong); background: transparent;
-  padding: 10px 2px 8px; font: 400 15px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
+.k-field { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; }
+.k-field-lbl { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--qahwa-fg-2); }
+/* Underline fields — no fill, just a hairline that lights up on focus. Light and
+   compact. 16px text so iOS never zooms on focus. */
+.k-input { border: 0; border-bottom: 1px solid var(--qahwa-border-strong); background: transparent;
+  min-height: 38px; padding: 4px 0; font: 400 16px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
   width: 100%; outline: none; border-radius: 0; -webkit-appearance: none; appearance: none;
   transition: border-color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-input:focus { border-bottom-color: var(--qahwa-accent); }
+.k-input:focus { border-bottom-color: var(--qahwa-accent); border-bottom-width: 2px; }
 .k-input::placeholder { color: var(--qahwa-fg-3); }
-.k-amount-in { font-family: var(--qahwa-font-data); font-size: 36px; font-weight: 600;
-  letter-spacing: -0.02em; text-align: left; padding: 6px 2px 8px; border-bottom-width: 2px; }
-.k-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.k-chip { font: 500 11px/1 var(--qahwa-font-ui); letter-spacing: 0.04em; padding: 9px 11px;
-  border: 1px solid var(--qahwa-border-strong); background: var(--qahwa-canvas);
+.k-amount-in { font-family: var(--qahwa-font-data); font-size: 30px; font-weight: 600;
+  letter-spacing: -0.01em; text-align: left; min-height: 48px; padding: 2px 0; border-bottom-width: 2px; }
+.k-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* elegant amount field — sized to content, not full width, with a currency tag */
+.k-amountrow { display: flex; align-items: baseline; gap: 9px; }
+.k-amountrow .k-amount-in { width: auto; flex: 0 1 200px; min-width: 90px; }
+.k-amountcur { flex: none; font: 500 13px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
+  letter-spacing: 0.06em; }
+
+/* category picker — colourful icon chips */
+.k-catpick { display: flex; flex-wrap: wrap; gap: 7px; }
+.k-catchip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+  padding: 0 12px 0 9px; border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas);
+  color: var(--qahwa-fg-2); font: 500 12px/1 var(--qahwa-font-ui); cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
+              border-color var(--qahwa-motion-fast) var(--qahwa-ease),
+              color var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-catchip-ic { width: 16px; height: 16px; flex: none; color: var(--c);
+  display: inline-flex; align-items: center; justify-content: center; }
+.k-catchip-ic svg { width: 16px; height: 16px; display: block; }
+.k-catchip.on { background: color-mix(in srgb, var(--c) 15%, var(--qahwa-canvas));
+  border-color: var(--c); color: var(--qahwa-fg-1); }
+.k-chip { font: 500 12px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
+  min-height: 34px; padding: 0 12px; display: inline-flex; align-items: center;
+  border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas);
   color: var(--qahwa-fg-2); cursor: pointer; }
 .k-chip.on { background: var(--qahwa-accent); border-color: var(--qahwa-accent); color: var(--qahwa-fg-inv); }
 
@@ -467,7 +559,7 @@
 .k-ring-r { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
 
 /* open section divider (de-boxed layout) */
-.k-sec.div { border-top: 1px solid var(--qahwa-border); margin-top: 22px; padding-top: 20px; }
+.k-sec.div { border-top: 1px solid var(--qahwa-border); margin-top: var(--k-sec); padding-top: var(--k-sec); }
 
 /* cashflow figures — open, no boxes */
 .k-figs { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; }
@@ -482,6 +574,25 @@
 /* open bucket-ring list (no outer panel) */
 .k-rings-open .k-ring-row { padding-left: 0; padding-right: 0; }
 .k-rings-open .k-ring-row + .k-ring-row { border-top: 1px solid var(--qahwa-border); }
+
+/* savings goals — horizontal rail of ring cards (full-bleed, snap) */
+.k-goalscroll { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--k-pad)); padding: 2px var(--k-pad) 5px;
+  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.k-goalscroll::-webkit-scrollbar { width: 0; height: 0; }
+.k-goalcard { flex: 0 0 138px; scroll-snap-align: start; background: var(--qahwa-canvas);
+  border: 1px solid var(--qahwa-border); cursor: pointer; padding: 16px 12px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-goalcard:active { background: var(--qahwa-surface); }
+.k-goalcard-ring { position: relative; display: inline-flex; }
+.k-goalcard-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.k-goalcard-check svg { width: 22px; height: 22px; display: block; }
+.k-goalcard-name { font: 600 13px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.k-goalcard-pct { font-size: 13px; font-weight: 600; line-height: 1; }
+.k-goalcard-amt { font-size: 11px; color: var(--qahwa-fg-1); white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .fade-in { animation: kin var(--qahwa-motion-slow) var(--qahwa-ease); }
 @keyframes kin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -499,7 +610,7 @@
 
 .k-ktabs { display: flex; gap: 24px; padding: 0 var(--k-pad); margin-top: 22px;
   border-bottom: 1px solid var(--qahwa-border); }
-.k-ktab { padding: 0 0 11px; font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.12em;
+.k-ktab { padding: 14px 0; font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--qahwa-fg-3); cursor: pointer; background: transparent;
   border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
   transition: color var(--qahwa-motion-fast) var(--qahwa-ease); }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Keela app icon — ember terracotta field, cream coffee-cups mark.
+       Mark scaled to ~66% and centred so it stays inside the maskable safe zone. -->
+  <rect width="512" height="512" fill="#C4623A"/>
+  <g transform="translate(256 256) scale(0.66) translate(-256 -266)" fill="#FAF9F5">
+    <circle cx="156" cy="148" r="36"/>
+    <circle cx="156" cy="320" r="100"/>
+    <circle cx="356" cy="148" r="36"/>
+    <circle cx="356" cy="320" r="100"/>
+  </g>
+</svg>
