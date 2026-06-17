@@ -5,9 +5,14 @@ html,
 body {
   height: 100%;
   margin: 0;
-  /* parchment everywhere so no white ever peeks through the safe areas */
+  /* theme canvas everywhere so no white ever peeks through the safe areas.
+     `data-theme` is mirrored onto <html> (see App.tsx) so this resolves to the
+     dark canvas in dark mode instead of falling back to the light :root value. */
   background: var(--qahwa-canvas);
 }
+/* native scrollbars / overscroll glow follow the active theme on <html> */
+html { color-scheme: light; }
+html[data-theme='dark'] { color-scheme: dark; }
 
 /* Pin the app to the visual viewport. Using fixed/inset instead of a height:%
    chain avoids the iOS standalone-PWA gap where 100dvh comes up short of the
