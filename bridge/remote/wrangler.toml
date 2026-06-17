@@ -1,0 +1,21 @@
+name = "keela-bridge"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The `agents` client bundle dynamically imports the optional `ai` package, which
+# we don't use (server-side createMcpHandler only). Alias it to a stub so esbuild
+# can resolve it at bundle time.
+[alias]
+"ai" = "./ai-stub.js"
+
+# Token/grant/client storage for the OAuth provider. Create with:
+#   npx wrangler kv namespace create OAUTH_KV
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets are NOT set here — set them with `wrangler secret put` (see README):
+#   KEELA_SA        the service-account JSON (one line)
+#   KEELA_PASSWORD  the login password for the /authorize page

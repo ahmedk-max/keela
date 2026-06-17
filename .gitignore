@@ -3,7 +3,11 @@ serviceAccountKey.json
 *.serviceaccount.json
 .env
 .env.*
+.dev.vars
 .runtimeconfig.json
+
+# Cloudflare Workers / wrangler
+.wrangler/
 
 # Dependencies / build
 node_modules/

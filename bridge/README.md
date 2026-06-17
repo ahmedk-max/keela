@@ -35,11 +35,11 @@ npm run smoke   # read-only: prints the live summary + collection counts
 The repo's `.mcp.json` already registers this server, so any Claude Code session started
 in this project picks it up as the `keela` MCP server (`node bridge/keela-mcp.mjs`).
 
-## Later — phone Keela (remote connector)
+## Phone Keela (remote connector)
 
-The Claude app connects to MCP servers over **public HTTPS**, so the phone face needs this
-same tool surface deployed to a free serverless tier (Cloudflare Workers or Deno Deploy —
-**not** Firebase Functions, per the cost constraint) behind a bearer token, reaching
+The Claude app connects to MCP servers over **public HTTPS**, so the phone face runs the
+same tool surface on Cloudflare Workers — see [`remote/`](./remote/README.md). It reaches
 Firestore via the REST API + a service-account-signed JWT (firebase-admin's gRPC stack
-doesn't run on edge runtimes). The tool implementations here are written to port directly.
-Not built yet — it's the next step.
+doesn't run on edge runtimes), shares `../shared.mjs` for the money math, and is gated by
+OAuth (`@cloudflare/workers-oauth-provider`) behind a single password. Built and
+runtime-verified; deploy is one `wrangler deploy` away (needs your free Cloudflare login).
