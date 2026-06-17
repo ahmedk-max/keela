@@ -35,11 +35,22 @@ body {
   height: max(10px, env(safe-area-inset-top));
 }
 /* Tab bar floats at the bottom of the whole app (above detail views, below sheets)
-   so opening a bucket/asset never hides it. Anchored with position:fixed so it
-   pins to the real viewport bottom — not to .k-root, whose height can come up
-   short in a standalone PWA and leave the bar floating above the screen edge.
-   The padding-bottom carries the bar's surface colour down through the home-
-   indicator safe area so nothing white shows beneath it. */
+   so opening a bucket/asset never hides it. Anchored with position:fixed.
+
+   iOS standalone gotcha: BOTH `position: fixed; bottom: 0` and an absolute box
+   anchored to .k-root come up short of the physical screen edge — the fixed
+   "viewport" iOS exposes stops above the home-indicator inset. So the bar's
+   `bottom: 0` is the *safe* bottom, not the real one, and its padding-bottom
+   only carries the surface colour down to that short edge — leaving a pale strip
+   of page canvas in the home-indicator band (reads as a "white gap" against the
+   greyer bar).
+
+   Fix: a 0-blur/0-spread box-shadow offset straight down by the exact size of
+   that shortfall (env(safe-area-inset-bottom)) paints a copy of the bar's
+   surface across the band. box-shadow is painted relative to the bar's own box,
+   so it is NOT clipped by .k-root's overflow:hidden (fixed elements escape
+   ancestor overflow) nor by the short viewport box, and it draws harmlessly
+   off-screen when there is no shortfall. */
 .k-tabbar {
   position: fixed;
   left: 0;
@@ -47,6 +58,7 @@ body {
   bottom: 0;
   z-index: 75;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
+  box-shadow: 0 env(safe-area-inset-bottom, 0px) 0 0 var(--qahwa-surface);
 }
 /* reserve space so scroll content (main + detail) clears the floating tab bar,
    with breathing room between the last item and the bar (~66px bar + gap) */
