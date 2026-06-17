@@ -38,7 +38,10 @@ export function themeColors(el) {
     fg1: v('--qahwa-fg-1'), fg2: v('--qahwa-fg-2'), fg3: v('--qahwa-fg-3'),
     border: v('--qahwa-border'), borderStrong: v('--qahwa-border-strong'),
     gain: v('--qahwa-gain'), loss: v('--qahwa-loss'),
-    canvas: v('--qahwa-canvas'),
+    canvas: v('--qahwa-canvas'), sunk: v('--qahwa-surface-sunk'),
+    // coffee palette — used by per-bucket charts that key off a goal's colour var
+    latte: v('--qahwa-latte'), brewed: v('--qahwa-brewed'),
+    espresso: v('--qahwa-espresso'), bean: v('--qahwa-bean'), flat: v('--qahwa-flat'),
   }
 }
 

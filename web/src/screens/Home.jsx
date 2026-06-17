@@ -158,7 +158,7 @@ export function Home({ data, nav }) {
             {doneCount > 0 ? `${doneCount} done · all ` : 'All '}&rsaquo;
           </span>
         </div>
-        <GoalScroll goals={activeGoals} onOpen={nav.openBucket} />
+        <GoalScroll goals={visibleGoals} onOpen={nav.openBucket} />
       </div>
 
       {/* KEELA NOTE */}
