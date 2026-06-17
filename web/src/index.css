@@ -52,13 +52,19 @@ body {
   appearance: none;
 }
 
-/* Detail pages (bucket / asset / note) slide in like an iOS push. */
+/* Detail pages (bucket / asset / note) push in from the right like iOS.
+   The page is opaque from the first frame (no opacity fade) so the screen
+   underneath never bleeds through mid-transition. */
 .k-detail {
-  animation: kdetailin 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  animation: kdetailin 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
 }
 @keyframes kdetailin {
-  from { transform: translateX(8px); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-detail { animation-duration: 1ms; }
 }
 
 /* Bottom sheet — keyframe-driven so the entrance never races the first paint.
@@ -72,14 +78,16 @@ body {
   inset: 0;
   /* fixed dark scrim — must darken in BOTH themes (fg-1 flips to cream in dark mode) */
   background: rgba(28, 22, 17, 0.5);
-  animation: kscrim-in 270ms ease both;
+  animation: kscrim-in 360ms ease both;
 }
 .k-overlay.out::before {
-  animation: kscrim-out 240ms ease both;
+  animation: kscrim-out 260ms ease both;
 }
+/* Sheet slides up while the scrim fades — same envelope so they move as one. */
 .k-overlay > .k-sheet {
   position: relative;
   z-index: 1;
+  will-change: transform;
   animation: ksheet-in 360ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 .k-overlay.out > .k-sheet {
@@ -89,3 +97,11 @@ body {
 @keyframes kscrim-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes ksheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes ksheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+/* Respect the system "reduce motion" setting — collapse entrance animations. */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .k-overlay > .k-sheet,
+  .k-overlay::before,
+  .k-detail { animation-duration: 1ms !important; }
+}

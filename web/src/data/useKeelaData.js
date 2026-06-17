@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, collectionGroup, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { cap, catCode, fmt, NOW_MONTH } from '../lib/format'
+import { DEMO, demoData } from './demo'
 
 const COFFEE = [
   'var(--qahwa-latte)', 'var(--qahwa-brewed)', 'var(--qahwa-espresso)',
@@ -34,7 +35,7 @@ const codeFromName = (name) => {
 
 const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '')
 
-function buildData(raw) {
+export function buildData(raw) {
   // group entries (collectionGroup) back under their parent goal/asset
   const entriesByParent = {}
   for (const e of raw.entries) {
@@ -209,7 +210,7 @@ export function useKeelaData(enabled = true) {
   const [raw, setRaw] = useState(EMPTY)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || DEMO) return
     const merge = (patch) => setRaw((r) => ({ ...r, ...patch }))
     const noop = () => {}
     const subCol = (path, key = path) =>
@@ -239,6 +240,7 @@ export function useKeelaData(enabled = true) {
   }, [enabled])
 
   const data = useMemo(() => buildData(raw), [raw])
+  if (DEMO) return { data: demoData, loading: false }
   const loading = enabled ? raw.profile === null : false
   return { data, loading }
 }

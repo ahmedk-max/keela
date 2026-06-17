@@ -17,3 +17,6 @@ functions/lib/
 # Misc
 .DS_Store
 *.log
+
+# TypeScript build cache
+*.tsbuildinfo

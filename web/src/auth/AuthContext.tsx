@@ -6,6 +6,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { DEMO } from '../data/demo'
 
 interface AuthState {
   user: User | null
@@ -20,14 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(
-    () =>
-      onAuthStateChanged(auth, (u) => {
-        setUser(u)
-        setLoading(false)
-      }),
-    [],
-  )
+  useEffect(() => {
+    // Dev-only demo mode: skip Firebase, present a fake signed-in user.
+    if (DEMO) {
+      setUser({ uid: 'demo', displayName: 'Ahmed' } as User)
+      setLoading(false)
+      return
+    }
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u)
+      setLoading(false)
+    })
+  }, [])
 
   const signIn = async () => {
     await signInWithPopup(auth, googleProvider)

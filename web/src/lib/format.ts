@@ -29,7 +29,8 @@ export const fmtDay = (iso: string) => {
 }
 
 export const CATEGORIES = [
-  'Food', 'Groceries', 'Transport', 'Shopping', 'Health', 'Personal', 'Bills', 'Other',
+  'Food', 'Groceries', 'Transport', 'Shopping', 'Travel', 'Entertainment',
+  'Health', 'Personal', 'Gifts', 'Bills', 'Other',
 ]
 
 // Two-letter category codes for the little square tiles.

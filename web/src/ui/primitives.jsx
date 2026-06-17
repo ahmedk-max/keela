@@ -1,7 +1,8 @@
 /* Keela — shared UI primitives. Qahwa language. (ported from design ui.jsx) */
 import React from 'react'
 import { fmt, fmtDate } from '../lib/format'
-const { useState, useEffect, createContext, useContext } = React
+import { getCat } from '../lib/icons'
+const { useState, useEffect, useRef, createContext, useContext } = React
 
 /* ---------- Brand mark (two coffee cups from above) ---------- */
 export function Mark({ size = 24, fill = 'currentColor', style }) {
@@ -72,18 +73,39 @@ export const useSheetClose = () => useContext(SheetCloseCtx)
 
 export function Sheet({ title, onClose, children }) {
   const [out, setOut] = useState(false)
+  const sheetRef = useRef(null)
   const close = () => {
     if (out) return
     setOut(true)
-    setTimeout(onClose, 270)
+    setTimeout(onClose, 280) // a hair longer than the 260ms exit animation
   }
+
+  // Focus the marked field only AFTER the slide-in finishes. Focusing during the
+  // animation raises the keyboard mid-flight, which resizes the viewport and
+  // breaks the entrance. Waiting for animationend keeps the open glitch-free.
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el) return
+    let done = false
+    const focusNow = () => {
+      if (done) return
+      done = true
+      el.querySelector('[data-autofocus]')?.focus()
+    }
+    const onEnd = (e) => { if (e.target === el && e.animationName === 'ksheet-in') focusNow() }
+    el.addEventListener('animationend', onEnd)
+    const fallback = setTimeout(focusNow, 460) // in case animationend never fires
+    return () => { el.removeEventListener('animationend', onEnd); clearTimeout(fallback) }
+  }, [])
+
   return (
     <SheetCloseCtx.Provider value={close}>
       <div className={'k-overlay' + (out ? ' out' : '')} onClick={close}>
-        <div className="k-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="k-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
+          <div className="k-sheet-grab" />
           <div className="k-sheet-head">
-            <span className="k-label" style={{ fontSize: 11, whiteSpace: 'normal' }}>{title}</span>
-            <button className="k-back" onClick={close}>Cancel</button>
+            <span className="k-sheet-title">{title}</span>
+            <button className="k-sheet-cancel" onClick={close}>Cancel</button>
           </div>
           <div className="k-sheet-body">{typeof children === 'function' ? children(close) : children}</div>
         </div>
@@ -164,14 +186,23 @@ export function KeelaNote({ date, children, clamp = false, onClick }) {
   )
 }
 
-/* ---------- Category square ---------- */
-export function CatSquare({ code, keela }) {
+/* ---------- Icon badge (coloured tile) ---------- */
+export function Badge({ icon, img = null, color = 'var(--qahwa-fg-2)', dashed = false, ember = false }) {
   return (
-    <span className="k-sq">
-      {code}
-      {keela && <span className="k-ember" />}
+    <span className={'k-sq tinted' + (dashed ? ' dashed' : '')} style={{ '--c': color }}>
+      {img ? <img src={img} alt="" /> : icon}
+      {ember && <span className="k-ember" />}
     </span>
   )
+}
+
+/* ---------- Category badge (icon + colour, falls back to a letter code) ---------- */
+export function CatSquare({ cat, code, keela }) {
+  const meta = getCat(cat)
+  if (!meta) {
+    return <span className="k-sq">{code}{keela && <span className="k-ember" />}</span>
+  }
+  return <Badge icon={meta.icon} color={meta.color} ember={keela} />
 }
 
 /* ---------- Tag ---------- */
@@ -308,6 +339,19 @@ export const Icons = {
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
       <circle cx="9" cy="9" r="2.5" />
       <path d="M9 1.5v2.2M9 14.3v2.2M1.5 9h2.2M14.3 9h2.2M3.7 3.7l1.6 1.6M12.7 12.7l1.6 1.6M14.3 3.7l-1.6 1.6M5.3 12.7l-1.6 1.6" />
+    </svg>
+  ),
+  sliders: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
+      <path d="M3 5.5h5.5M13 5.5h2" />
+      <circle cx="10.5" cy="5.5" r="1.9" fill="var(--qahwa-canvas)" />
+      <path d="M3 12.5h2M9.5 12.5h5.5" />
+      <circle cx="7" cy="12.5" r="1.9" fill="var(--qahwa-canvas)" />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 8.5l3 3 6-7" />
     </svg>
   ),
 }

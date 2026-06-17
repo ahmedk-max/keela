@@ -8,7 +8,7 @@ import { useKeelaData } from './data/useKeelaData'
 import { TabGlyph } from './ui/primitives'
 import { Lock, Loading } from './screens/Lock'
 import { Home } from './screens/Home'
-import { Spending, TxSheet, BillSheet, UpcomingSheet } from './screens/Spending'
+import { Spending, TxSheet, BillSheet, UpcomingSheet, WishlistSheet } from './screens/Spending'
 import { Buckets, BucketDetail, BucketSheet, EditBucketSheet } from './screens/Buckets'
 import { Assets, AssetDetail } from './screens/Assets'
 import { Keela, MeetingDetail } from './screens/Keela'
@@ -90,6 +90,13 @@ export default function App() {
   }
   const deleteUpcoming = async (id: string) => { await deleteDoc(doc(db, 'upcomingExpenses', String(id))) }
 
+  const saveWish = async (item: any, f: any) => {
+    const data = { name: f.name, amount: f.amount }
+    if (item?.id) await updateDoc(doc(db, 'wishlist', String(item.id)), data)
+    else await addDoc(collection(db, 'wishlist'), { ...data, createdAt: serverTimestamp() })
+  }
+  const deleteWish = async (id: string) => { await deleteDoc(doc(db, 'wishlist', String(id))) }
+
   const saveSettings = async (profile: any, income: any[]) => {
     const salary = income.find((s) => s.id === 'salary')
     await updateDoc(doc(db, 'profile', 'main'), {
@@ -110,6 +117,8 @@ export default function App() {
     editBill: (b: any) => setSheet({ kind: 'bill', bill: b }),
     addUpcoming: () => setSheet({ kind: 'upcoming', item: null }),
     editUpcoming: (u: any) => setSheet({ kind: 'upcoming', item: u }),
+    addWishlist: () => setSheet({ kind: 'wish', item: null }),
+    editWishlist: (w: any) => setSheet({ kind: 'wish', item: w }),
     openBucket: (id: string) => setOverlay({ kind: 'bucket', id }),
     openAsset: (id: string) => setOverlay({ kind: 'asset', id }),
     openMeeting: (id: string) => setOverlay({ kind: 'meeting', id }),
@@ -141,7 +150,7 @@ export default function App() {
     let overlayEl: JSX.Element | null = null
     if (overlay?.kind === 'bucket') {
       const g = data.goals.find((x: any) => x.id === overlay.id)
-      if (g) overlayEl = <BucketDetail g={g} onClose={() => setOverlay(null)} onMove={(id: string, mode: string) => setSheet({ kind: 'bucketMove', goalId: id, mode })} />
+      if (g) overlayEl = <BucketDetail g={g} onClose={() => setOverlay(null)} onMove={(id: string, mode: string) => setSheet({ kind: 'bucketMove', goalId: id, mode })} onEdit={(id: string) => setSheet({ kind: 'bucketEdit', goalId: id })} />
     } else if (overlay?.kind === 'asset') {
       const a = data.assets.find((x: any) => x.id === overlay.id)
       if (a) overlayEl = <AssetDetail a={a} onClose={() => setOverlay(null)} />
@@ -155,6 +164,7 @@ export default function App() {
     if (sheet?.kind === 'tx') sheetEl = <TxSheet tx={sheet.tx} onClose={closeSheet} onSave={(f: any) => saveTxn(sheet.tx, f)} onDelete={deleteTxn} />
     else if (sheet?.kind === 'bill') sheetEl = <BillSheet bill={sheet.bill} onClose={closeSheet} onSave={(f: any) => saveBill(sheet.bill, f)} onDelete={deleteBill} />
     else if (sheet?.kind === 'upcoming') sheetEl = <UpcomingSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveUpcoming(sheet.item, f)} onDelete={deleteUpcoming} />
+    else if (sheet?.kind === 'wish') sheetEl = <WishlistSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveWish(sheet.item, f)} onDelete={deleteWish} />
     else if (sheet?.kind === 'bucketMove') sheetEl = <BucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} mode={sheet.mode} onClose={closeSheet} onSave={moveBucket} />
     else if (sheet?.kind === 'bucketEdit') sheetEl = <EditBucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} onClose={closeSheet} onSave={editGoal} onDelete={deleteBucket} />
     else if (sheet?.kind === 'settings') sheetEl = <IncomeSettingsSheet profile={data.profile} income={data.income} onClose={closeSheet} onSave={saveSettings} />

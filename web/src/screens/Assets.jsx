@@ -1,5 +1,7 @@
 /* Keela — Assets: investments & net worth detail (ported, wired to data) */
-import { Delta, Sparkline, Tag } from '../ui/primitives'
+import { Delta, Tag, Badge } from '../ui/primitives'
+import { getEntry } from '../lib/icons'
+import { TrendChart } from '../ui/echart'
 import { fmt, fmtDate } from '../lib/format'
 
 function assetSeries(a) {
@@ -23,7 +25,7 @@ function AssetRow({ a, onClick }) {
       <span className="k-swatch" style={{ width: 12, height: 12, background: a.color }} />
       <div className="k-row-main">
         <span className="k-row-name">{a.name}</span>
-        <span className="k-row-sub">{a.cat} &middot; {a.goal}</span>
+        <span className="k-row-sub">{a.goal && a.goal !== a.cat ? `${a.cat} · ${a.goal}` : a.cat}</span>
       </div>
       <div className="k-row-r">
         <span className="k-row-amt">{fmt(a.current)}</span>
@@ -107,7 +109,7 @@ export function AssetDetail({ a, onClose }) {
           </div>
 
           <div className="k-sec" style={{ marginTop: 18 }}>
-            <Sparkline values={series} h={60} stroke={gain >= 0 ? 'var(--qahwa-gain)' : 'var(--qahwa-loss)'} />
+            <TrendChart values={series} height={60} tone={gain >= 0 ? 'gain' : 'loss'} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
               <span className="k-micro k-num">{fmt(a.invested)}</span>
               <span className="k-micro">balance history</span>
@@ -128,7 +130,7 @@ export function AssetDetail({ a, onClose }) {
             <div className="k-sec-head"><span className="k-label">Entries</span><span className="k-micro">{a.entries.length}</span></div>
             {a.entries.map((e, i) => (
               <div className="k-row" key={i}>
-                <span className="k-sq" style={{ fontSize: 8, letterSpacing: '0.06em' }}>{e.type.slice(0, 3).toUpperCase()}</span>
+                <Badge icon={getEntry(e.type).icon} color={getEntry(e.type).color} />
                 <div className="k-row-main">
                   <span className="k-row-name" style={{ textTransform: 'capitalize' }}>{e.type}</span>
                   <span className="k-row-sub">{fmtDate(e.date)}{e.note ? ' · ' + e.note : ''}</span>

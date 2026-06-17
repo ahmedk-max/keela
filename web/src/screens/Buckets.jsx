@@ -1,6 +1,7 @@
 /* Keela — Buckets: saving goals (ported, wired to data) */
 import React from 'react'
-import { Progress, Tag, Empty, Icons, Sheet } from '../ui/primitives'
+import { Progress, Tag, Empty, Sheet, Badge } from '../ui/primitives'
+import { getEntry } from '../lib/icons'
 import { fmt, fmtDate, monthsBetween, MONTH_ABBR, NOW_MONTH } from '../lib/format'
 
 const TODAY = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
@@ -26,7 +27,7 @@ const entryStyle = {
   spend: { sign: '−', cls: 'k-loss', label: 'Spent' },
 }
 
-function BucketCard({ g, onClick, onEdit, onDelete }) {
+function BucketCard({ g, onClick }) {
   const spent = g.spent || 0
   const balance = g.allocated - spent
   const completed = g.status === 'completed'
@@ -36,20 +37,13 @@ function BucketCard({ g, onClick, onEdit, onDelete }) {
   const left = balance
   const monthly = monthlyNeeded(g)
   const ml = monthsLeft(g)
-  const stop = (fn) => (e) => { e.stopPropagation(); fn(g.id) }
 
   return (
-    <div className="k-bucket-card" role="button" tabIndex={0} onClick={onClick} style={{ width: '100%', textAlign: 'left', padding: '15px 0', cursor: 'pointer', borderTop: '1px solid var(--qahwa-border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 11 }}>
+    <div className="k-bucket-card" role="button" tabIndex={0} onClick={onClick} style={{ width: '100%', textAlign: 'left', padding: '16px 0', cursor: 'pointer', borderTop: '1px solid var(--qahwa-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span className="k-swatch" style={{ width: 12, height: 12, background: g.color }} />
         <span style={{ font: '600 14px/1.2 var(--qahwa-font-ui)', flex: 1 }}>{g.name}</span>
-        <span className="k-card-tr">
-          <span className="k-card-status">{statusTag(g.status)}</span>
-          <span className="k-card-acts">
-            <button className="k-iconbtn ico" title="Edit" onClick={stop(onEdit)}>{Icons.edit}</button>
-            <button className="k-iconbtn ico danger" title="Delete" onClick={stop(onDelete)}>{Icons.trash}</button>
-          </span>
-        </span>
+        {statusTag(g.status)}
       </div>
 
       {drawdown ? (
@@ -147,7 +141,7 @@ export function Buckets({ data, nav }) {
         </div>
       </div>
       <div className="k-sec">
-        {ongoing.length ? ongoing.map((g) => <BucketCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} onEdit={nav.editBucket} onDelete={nav.deleteBucket} />)
+        {ongoing.length ? ongoing.map((g) => <BucketCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} />)
           : <Empty>No active buckets.</Empty>}
       </div>
       {done.length > 0 && (
@@ -156,7 +150,7 @@ export function Buckets({ data, nav }) {
             <div className="k-sec-head"><span className="k-label">Completed &amp; spent</span><span className="k-micro">{done.length}</span></div>
           </div>
           <div className="k-sec" style={{ marginTop: 0 }}>
-            {done.map((g) => <BucketCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} onEdit={nav.editBucket} onDelete={nav.deleteBucket} />)}
+            {done.map((g) => <BucketCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} />)}
           </div>
         </React.Fragment>
       )}
@@ -170,9 +164,10 @@ function ActivityLog({ entries }) {
       <div className="k-sec-head"><span className="k-label">Activity log</span><span className="k-micro">{entries.length}</span></div>
       {entries.length ? entries.map((e, i) => {
         const s = entryStyle[e.type] || { sign: '', cls: '', label: e.type }
+        const ent = getEntry(e.type)
         return (
           <div className="k-row" key={i}>
-            <span className="k-sq" style={{ color: e.cls ? `var(--qahwa-${e.type === 'deposit' ? 'gain' : 'loss'})` : 'var(--qahwa-fg-2)' }}>{s.sign || '·'}</span>
+            <Badge icon={ent.icon} color={ent.color} />
             <div className="k-row-main">
               <span className="k-row-name">{s.label}</span>
               <span className="k-row-sub">{fmtDate(e.date)}{e.note ? ' · ' + e.note : ''}</span>
@@ -185,7 +180,7 @@ function ActivityLog({ entries }) {
   )
 }
 
-export function BucketDetail({ g, onClose, onMove }) {
+export function BucketDetail({ g, onClose, onMove, onEdit }) {
   const spent = g.spent || 0
   const balance = g.allocated - spent
   const completed = g.status === 'completed'
@@ -200,7 +195,10 @@ export function BucketDetail({ g, onClose, onMove }) {
 
   return (
     <div className="k-detail">
-      <div className="k-detail-bar"><button className="k-back" onClick={onClose}>&lsaquo; Buckets</button></div>
+      <div className="k-detail-bar">
+        <button className="k-back" onClick={onClose}>&lsaquo; Buckets</button>
+        <button className="k-back" style={{ marginLeft: 'auto' }} onClick={() => onEdit(g.id)}>Edit</button>
+      </div>
       <div className="k-scroll">
         <div className="k-screen">
           <div className="k-hero" style={{ paddingTop: 16 }}>
@@ -296,15 +294,18 @@ export function BucketSheet({ goal, mode, onClose, onSave }) {
       {(close) => (
         <>
           <div className="k-field" style={{ marginTop: 14 }}>
-            <span className="k-label dim">Amount &middot; SAR</span>
-            <input className="k-input k-amount-in" inputMode="decimal" placeholder="0" value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} autoFocus />
+            <span className="k-label dim">Amount</span>
+            <div className="k-amountrow">
+              <input className="k-input k-amount-in" inputMode="decimal" placeholder="0" value={amount}
+                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} data-autofocus />
+              <span className="k-amountcur">SAR</span>
+            </div>
           </div>
           <div className="k-field">
             <span className="k-label dim">Note &middot; optional</span>
             <input className="k-input" placeholder="Add a note" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
-          <button className={'k-btn full ' + (mode === 'deposit' ? 'accent' : '')} style={{ marginTop: 22, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
+          <button className={'k-btn full ' + (mode === 'deposit' ? 'accent' : '')} style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
             onClick={() => { if (valid) { onSave(goal.id, { type: mode, amount: Math.round(parseFloat(amount) * 100) / 100, date: TODAY, note: note.trim() }); close() } }}>
             {cta[mode]}
           </button>
@@ -325,7 +326,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
         <>
           <div className="k-field" style={{ marginTop: 14 }}>
             <span className="k-label dim">Name</span>
-            <input className="k-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input className="k-input" value={name} onChange={(e) => setName(e.target.value)} data-autofocus />
           </div>
           <div className="k-field">
             <span className="k-label dim">Target &middot; SAR</span>
@@ -335,7 +336,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
             <span className="k-label dim">Target month</span>
             <input className="k-input k-num" type="month" value={tdate} onChange={(e) => setTdate(e.target.value)} />
           </div>
-          <button className="k-btn accent full" style={{ marginTop: 22, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
+          <button className="k-btn accent full" style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
             onClick={() => { if (valid) { onSave(goal.id, { name: name.trim(), target: parseInt(target, 10), targetDate: tdate }); close() } }}>
             SAVE CHANGES
           </button>
