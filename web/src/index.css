@@ -2,18 +2,22 @@
 
 /* The PWA fills the real device — no simulated iPhone frame. */
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
+  /* parchment everywhere so no white ever peeks through the safe areas */
+  background: var(--qahwa-canvas);
 }
 
+/* Pin the app to the visual viewport. Using fixed/inset instead of a height:%
+   chain avoids the iOS standalone-PWA gap where 100dvh comes up short of the
+   real screen and leaves white below the tab bar. */
 #root {
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
 }
 
 body {
-  background: var(--qahwa-canvas);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
