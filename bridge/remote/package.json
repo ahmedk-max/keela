@@ -1,0 +1,21 @@
+{
+  "name": "keela-bridge-remote",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Keela's remote MCP bridge on Cloudflare Workers — same Firestore tools, over HTTPS, for the Claude app connector.",
+  "scripts": {
+    "verify": "node verify.mjs",
+    "test-tools": "node test-tools.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "agents": "^0.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}
