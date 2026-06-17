@@ -378,17 +378,17 @@
 /* =========================================================================
    Segmented control
    ========================================================================= */
-/* iOS-style segmented control — inset track, raised selected tile. */
-.k-seg { display: flex; gap: 3px; padding: 3px;
+/* iOS-style segmented control — slim inset track, raised selected tile. */
+.k-seg { display: flex; gap: 2px; padding: 2px;
   background: var(--qahwa-surface-sunk); border: 1px solid var(--qahwa-border); }
-.k-seg-item { flex: 1; min-height: 38px; padding: 0 6px; cursor: pointer;
+.k-seg-item { flex: 1; min-height: 28px; padding: 0 6px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; text-align: center;
-  font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
+  font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--qahwa-fg-2); background: transparent; border: 0;
   transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
               color var(--qahwa-motion-fast) var(--qahwa-ease); }
 .k-seg-item.on { background: var(--qahwa-canvas); color: var(--qahwa-fg-1);
-  box-shadow: 0 1px 2px rgba(28, 22, 17, 0.14); }
+  box-shadow: 0 1px 1.5px rgba(28, 22, 17, 0.12); }
 
 /* =========================================================================
    Bottom tab bar
