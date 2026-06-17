@@ -14,7 +14,7 @@ function loadECharts() {
       import('echarts/components'),
       import('echarts/renderers'),
     ]).then(([core, charts, comps, renderers]) => {
-      core.use([charts.LineChart, charts.BarChart, comps.GridComponent, comps.MarkLineComponent, comps.TooltipComponent, renderers.SVGRenderer])
+      core.use([charts.LineChart, charts.BarChart, charts.SankeyChart, comps.GridComponent, comps.MarkLineComponent, comps.TooltipComponent, renderers.SVGRenderer])
       return core
     })
   }
@@ -104,4 +104,36 @@ export function TrendChart({ values, height = 46, tone = 'accent', area = true }
     }
   }
   return <EChart make={make} sig={sig} height={height} ariaLabel="trend" />
+}
+
+/* Monthly cash-flow river — income fanning into saved / expenses / variable.
+   A Sankey: the single income node on the left splits into three coloured
+   ribbons whose thickness is each share of the month. Node labels are off; the
+   figures row below names them (matches the app's bar+legend idiom). */
+export function CashflowSankey({ income, saved, expenses, variable, height = 150 }) {
+  const sig = [income, saved, expenses, variable].join(',')
+  const make = (c) => ({
+    animation: true, animationDuration: 700, animationEasing: 'cubicOut',
+    series: [{
+      type: 'sankey',
+      left: 1, right: 1, top: 8, bottom: 8,
+      nodeWidth: 12, nodeGap: 14, draggable: false,
+      emphasis: { focus: 'adjacency' },
+      label: { show: false },
+      data: [
+        { name: 'Income', itemStyle: { color: c.fg3, borderColor: c.fg3 } },
+        { name: 'Saved', itemStyle: { color: c.gain, borderColor: c.gain } },
+        { name: 'Expenses', itemStyle: { color: c.loss, borderColor: c.loss } },
+        { name: 'Variable', itemStyle: { color: c.accent, borderColor: c.accent } },
+      ],
+      links: [
+        { source: 'Income', target: 'Saved', value: Math.max(0, saved) },
+        { source: 'Income', target: 'Expenses', value: Math.max(0, expenses) },
+        { source: 'Income', target: 'Variable', value: Math.max(0, variable) },
+      ],
+      lineStyle: { color: 'target', opacity: 0.42, curveness: 0.5 },
+      itemStyle: { borderWidth: 0 },
+    }],
+  })
+  return <EChart make={make} sig={sig} height={height} ariaLabel="Monthly cash flow river" />
 }

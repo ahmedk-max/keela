@@ -1,7 +1,8 @@
 /* Keela — Home: daily-driver. Variable headroom hero · runway · goals grid. */
-import { Delta, KeelaNote, Mark, Icons } from '../ui/primitives'
-import { GoalScroll, CashflowRiver, RunwayBar } from './home-extras'
-import { fmt } from '../lib/format'
+import { Delta, KeelaNote, Mark, Icons, Sparkline } from '../ui/primitives'
+import { GoalScroll, RunwayBar } from './home-extras'
+import { CashflowSankey } from '../ui/echart'
+import { fmt, monthsBetween, NOW_MONTH } from '../lib/format'
 
 const DAY = 86400000
 
@@ -15,7 +16,6 @@ export function Home({ data, nav }) {
   const variablePct = cf.variableBudget > 0
     ? Math.round((cf.variableSpent / cf.variableBudget) * 100)
     : (cf.variableSpent > 0 ? 100 : 0)
-  const rateAhead = cf.rate - cf.target
 
   // cycle progress — how far through the pay cycle we are, vs how fast we're spending
   const startMs = new Date(cf.cycleStart).getTime()
@@ -51,6 +51,11 @@ export function Home({ data, nav }) {
   const delta = nw - prev
   const deltaPct = prev ? (delta / prev) * 100 : 0
 
+  // ----- the vow: 36-month pact countdown (Oct 2024 → Oct 2027) -----
+  const pactTotal = Math.max(1, monthsBetween(profile.pactStart, profile.pactEnd))
+  const pactElapsed = Math.min(pactTotal, Math.max(0, monthsBetween(profile.pactStart, NOW_MONTH)))
+  const pactLeft = Math.max(0, pactTotal - pactElapsed)
+
   // ----- goals: show every bucket that still holds money — including funded ones
   // not yet spent — in-progress first; only emptied buckets collapse to a count.
   const isFunded = (g) => g.status === 'completed' || (g.allocated || 0) >= g.target
@@ -80,48 +85,54 @@ export function Home({ data, nav }) {
         </div>
       </div>
 
-      {/* THIS CYCLE — variable headroom, the daily number */}
+      {/* THIS CYCLE — variable headroom, the daily number. One figure, one
+          verdict, one gauge: the breakdown moves to its own sections below. */}
       <div className="k-hero" style={{ paddingTop: 8 }}>
-        <div className="k-sec-head" style={{ marginBottom: 14 }}>
-          <span className="k-label">This cycle</span>
-          <span className="k-micro" style={{ cursor: 'pointer', color: 'var(--qahwa-accent)', letterSpacing: '0.04em' }} onClick={nav.openSettings}>Edit income &rsaquo;</span>
-        </div>
-
-        <span className="k-label dim" style={{ display: 'block', marginBottom: 10 }}>Left to spend</span>
-        <div className="k-hero-num" style={{ fontSize: 46, color: variableLeft < 0 ? 'var(--qahwa-loss)' : 'var(--qahwa-fg-1)' }}>
-          {fmt(variableLeft)}<span className="k-sar" style={{ fontSize: 14, marginLeft: 8 }}>SAR</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
-          <span className="k-micro">{fmt(cf.variableSpent)} of {fmt(cf.variableBudget)} variable spent</span>
-          <span style={{ textAlign: 'right', flex: 'none' }}>
-            <span className="k-num" style={{ display: 'block', fontWeight: 600, color: rateAhead >= 0 ? 'var(--qahwa-gain)' : 'var(--qahwa-loss)' }}>{cf.rate}% saved</span>
-            <span className="k-micro">{rateAhead >= 0 ? '▲ +' : '▼ −'}{Math.abs(rateAhead)} vs {cf.target} pact</span>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <span className="k-label dim" style={{ display: 'block', marginBottom: 10 }}>Left to spend</span>
+            <div className="k-hero-num" style={{ fontSize: 46, color: variableLeft < 0 ? 'var(--qahwa-loss)' : 'var(--qahwa-fg-1)' }}>
+              {fmt(variableLeft)}<span className="k-sar" style={{ fontSize: 14, marginLeft: 8 }}>SAR</span>
+            </div>
+          </div>
+          <span className={'k-tag ' + (variableLeft < 0 ? 'loss' : onPace ? 'gain' : 'loss')} style={{ marginTop: 6 }}>
+            {variableLeft < 0 ? 'Over budget' : onPace ? 'On pace' : 'Over pace'}
           </span>
         </div>
 
+        <div className="k-micro" style={{ marginTop: 12 }}>
+          {daysLeft > 0
+            ? <>~<span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(Math.max(0, perDay))}</span>/day to coast the last {daysLeft} days</>
+            : 'cycle ending'}
+        </div>
+
         {/* variable budget bar with a "where you should be" time marker */}
-        <div style={{ position: 'relative', marginTop: 16 }}>
+        <div style={{ position: 'relative', marginTop: 14 }}>
           <div className="k-flowbar">
             <div className="k-flowbar-seg" style={{ width: Math.min(100, variablePct) + '%', background: variableLeft < 0 ? 'var(--qahwa-loss)' : onPace ? 'var(--qahwa-gain)' : 'var(--qahwa-accent)' }} />
           </div>
           <div style={{ position: 'absolute', left: Math.min(100, timePct) + '%', top: -3, bottom: -3, width: 1, background: 'var(--qahwa-fg-1)' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7 }}>
-          <span className="k-micro">Day {dayInCycle} / {cycleLen}</span>
-          <span className="k-micro" style={{ color: onPace ? 'var(--qahwa-gain)' : 'var(--qahwa-loss)' }}>
-            {daysLeft > 0 ? `${fmt(Math.max(0, perDay))}/day left · ${onPace ? 'on pace' : 'over pace'}` : 'cycle ending'}
-          </span>
+          <span className="k-micro"><span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.variableSpent)}</span> spent</span>
+          <span className="k-micro">of <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.variableBudget)}</span> budget</span>
         </div>
+      </div>
 
-        {/* income allocation — Saved / Expenses / Variable */}
-        <div style={{ marginTop: 22 }}>
-          <CashflowRiver saved={cf.saved} expenses={expenses} variable={cf.variableSpent} />
-          <div className="k-figs" style={{ marginTop: 16 }}>
-            <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-gain)' }} /><span className="k-fig-val">{fmt(cf.saved)}</span><span className="k-label dim">Saved</span></div>
-            <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-loss)' }} /><span className="k-fig-val">{fmt(expenses)}</span><span className="k-label dim">Expenses</span></div>
-            <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-brewed)' }} /><span className="k-fig-val">{fmt(cf.variableSpent)}</span><span className="k-label dim">Variable</span></div>
-          </div>
+      {/* MONTHLY FLOW — where each month's income goes, as a river */}
+      <div className="k-sec div">
+        <div className="k-sec-head">
+          <span className="k-label">Monthly flow</span>
+          <span className="k-micro"><span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.income)}</span> income</span>
+        </div>
+        <CashflowSankey income={cf.income} saved={cf.saved} expenses={expenses} variable={cf.variableSpent} />
+        <div className="k-figs" style={{ marginTop: 14 }}>
+          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-gain)' }} /><span className="k-fig-val">{fmt(cf.saved)}</span><span className="k-label dim">Saved &middot; {cf.rate}%</span></div>
+          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-loss)' }} /><span className="k-fig-val">{fmt(expenses)}</span><span className="k-label dim">Expenses</span></div>
+          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-accent)' }} /><span className="k-fig-val">{fmt(cf.variableSpent)}</span><span className="k-label dim">Variable</span></div>
+        </div>
+        <div className="k-micro" style={{ marginTop: 12, color: 'var(--qahwa-fg-3)' }}>
+          {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact &middot; vow {pactElapsed} of {pactTotal} months &middot; {pactLeft} left
         </div>
       </div>
 
@@ -129,18 +140,23 @@ export function Home({ data, nav }) {
       <div className="k-sec div">
         <div className="k-sec-head">
           <span className="k-label">Runway &middot; if income stopped</span>
-          <Delta value={delta} pct={deltaPct} dp={1} />
+          <span className="k-micro" style={{ cursor: 'pointer' }} onClick={() => nav.goTab('assets')}>Net worth &rsaquo;</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
-          <span className="k-num" style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.02em' }}>{runwayLabel}</span>
-          <span className="k-micro">months of essentials covered</span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+            <span className="k-num" style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.02em' }}>{runwayLabel}</span>
+            <span className="k-micro">months of essentials covered</span>
+          </div>
+          <span style={{ display: 'block', width: 88, height: 30, flex: 'none' }}>
+            <Sparkline values={series} h={30} stroke="var(--qahwa-gain)" />
+          </span>
         </div>
         <div style={{ marginTop: 14 }}>
-          <RunwayBar liquid={liquid} segs={earmarkedSegs} />
+          <RunwayBar liquid={liquid} earmarked={earmarkedTotal} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
           <span className="k-micro"><span className="k-num k-gain" style={{ fontWeight: 600 }}>{fmt(liquid)}</span> liquid &middot; {freePct}% free</span>
-          <span className="k-micro">Net worth <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(nw)}</span></span>
+          <span className="k-micro">Net worth <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(nw)}</span> <Delta value={delta} pct={deltaPct} dp={1} /></span>
         </div>
         {earmarkedSegs.length > 0 && (
           <div className="k-micro" style={{ marginTop: 5, color: 'var(--qahwa-fg-3)' }}>

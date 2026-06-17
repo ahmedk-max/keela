@@ -126,21 +126,22 @@ export function Sparkline({ values, h = 48, stroke = 'var(--qahwa-accent)', fill
   )
 }
 
-/* ---------- Pact ledger gauge ---------- */
-export function PactGauge({ kept, target, income }) {
+/* ---------- Pact ledger gauge ----------
+   kept/target = this cycle's save rate vs the pact line. Optional `vow` renders
+   the 36-month countdown (Oct 2024 → Oct 2027) as a thin progress strip. */
+export function PactGauge({ kept, target, vow }) {
   const ahead = kept - target
-  const live = 100 - kept
   return (
     <div className="k-pact">
       <div className="k-pact-top">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <span className="k-label" style={{ whiteSpace: 'nowrap' }}>Kept &middot; June</span>
+          <span className="k-label" style={{ whiteSpace: 'nowrap' }}>Kept this cycle</span>
           <span className="k-pact-kept k-gain">{kept}%</span>
         </div>
         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <span className="k-label dim">Target {target}</span>
+          <span className="k-label dim">Save {target} / Live {100 - target}</span>
           <span className={'k-num ' + (ahead >= 0 ? 'k-gain' : 'k-loss')} style={{ fontWeight: 600, fontSize: 13 }}>
-            {ahead >= 0 ? '▲ AHEAD' : '▼ BEHIND'} {ahead >= 0 ? '+' : '−'}{Math.abs(ahead)}
+            {ahead >= 0 ? '▲ +' : '▼ −'}{Math.abs(ahead)} {ahead >= 0 ? 'ahead' : 'behind'}
           </span>
         </div>
       </div>
@@ -153,12 +154,15 @@ export function PactGauge({ kept, target, income }) {
         </div>
         <div className="k-gauge-tick" data-l={target} style={{ left: target + '%' }} />
       </div>
-      <div className="k-pact-foot">
-        <span className="k-micro" style={{ letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-          {fmt(Math.round(income * kept / 100))} saved &middot; {fmt(Math.round(income * live / 100))} live
-        </span>
-        <span className="k-label dim">SAR</span>
-      </div>
+      {vow && (
+        <div className="k-pact-foot" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span className="k-micro" style={{ letterSpacing: '0.04em' }}>The vow &middot; month {vow.elapsed} of {vow.total}</span>
+            <span className="k-num k-em" style={{ fontWeight: 600, fontSize: 11 }}>{vow.left} mo left</span>
+          </div>
+          <div className="k-vow-bar"><i style={{ width: Math.min(100, vow.elapsed / vow.total * 100) + '%' }} /></div>
+        </div>
+      )}
     </div>
   )
 }

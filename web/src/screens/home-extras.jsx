@@ -54,15 +54,18 @@ export function GoalScroll({ goals, onOpen }) {
   )
 }
 
-/* ---------- Runway bar (liquid vs earmarked split of net worth) ---------- */
-export function RunwayBar({ liquid, segs }) {
-  const total = liquid + segs.reduce((s, g) => s + g.bal, 0) || 1
+/* ---------- Runway bar (liquid vs earmarked split of net worth) ----------
+   Two segments only: liquid runway (gain) and everything earmarked clumped into
+   one neutral block. The per-bucket breakdown lives in the caption below, not the
+   bar — a clean split reads better than a muddy stack of goal colours. */
+export function RunwayBar({ liquid, earmarked }) {
+  const total = liquid + earmarked || 1
   return (
     <div className="k-flowbar">
       <div className="k-flowbar-seg" style={{ width: (liquid / total * 100) + '%', background: 'var(--qahwa-gain)' }} />
-      {segs.map((g) => (
-        <div key={g.id} className="k-flowbar-seg" style={{ width: (g.bal / total * 100) + '%', background: g.color }} />
-      ))}
+      {earmarked > 0 && (
+        <div className="k-flowbar-seg" style={{ width: (earmarked / total * 100) + '%', background: 'var(--qahwa-flat)' }} />
+      )}
     </div>
   )
 }
