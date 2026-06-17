@@ -13,15 +13,14 @@ export function monthlyNeeded(g) {
 }
 export const goalBalance = (g) => Math.max(0, (g.allocated || 0) - (g.spent || 0))
 
-/* ---------- portfolio roll-up ---------- */
+/* ---------- portfolio roll-up (over whatever subset of goals is passed) ---------- */
 export function bucketStats(goals, profile) {
   const active = goals.filter((g) => g.status === 'active')
   const paused = goals.filter((g) => g.status === 'paused')
-  const ongoing = goals.filter((g) => g.status !== 'completed')
-  const completed = goals.filter((g) => g.status === 'completed')
+  const ongoing = [...active, ...paused]
+  const fundedReady = goals.filter((g) => g.status === 'completed') // completed & untouched here
 
   const netSavings = goals.reduce((s, g) => s + goalBalance(g), 0)
-  const totalSaved = goals.reduce((s, g) => s + (g.allocated || 0), 0)
 
   // composition of money currently held — biggest bucket first
   const alloc = goals
@@ -32,14 +31,15 @@ export function bucketStats(goals, profile) {
   const ongoingTarget = ongoing.reduce((s, g) => s + g.target, 0)
   const ongoingBalance = ongoing.reduce((s, g) => s + goalBalance(g), 0)
   const fundedPct = ongoingTarget > 0 ? Math.round((ongoingBalance / ongoingTarget) * 100) : 0
+  const remaining = ongoing.reduce((s, g) => s + Math.max(0, g.target - goalBalance(g)), 0)
 
   const requiredMonthly = active.reduce((s, g) => s + monthlyNeeded(g), 0)
   const saveBudget = Math.round((profile.salary || 0) * (profile.split?.save || 0) / 100)
   const headroom = saveBudget - requiredMonthly
 
   return {
-    active, paused, ongoing, completed, netSavings, totalSaved, alloc,
-    ongoingTarget, ongoingBalance, fundedPct, requiredMonthly, saveBudget, headroom,
+    active, paused, ongoing, fundedReady, netSavings, alloc,
+    ongoingTarget, ongoingBalance, fundedPct, remaining, requiredMonthly, saveBudget, headroom,
   }
 }
 

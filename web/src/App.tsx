@@ -43,6 +43,7 @@ export default function App() {
   const [density] = useState<string>(() => localStorage.getItem('keela.density') || 'compact')
   const [tab, setTab] = useState<string>(() => localStorage.getItem('keela.tab') || 'home')
   const [spendSub, setSpendSub] = useState('tx')
+  const [bucketSub, setBucketSub] = useState('saving')
   const [keelaSub, setKeelaSub] = useState('notes')
   const [overlay, setOverlay] = useState<any>(null)
   const [sheet, setSheet] = useState<any>(null)
@@ -72,7 +73,10 @@ export default function App() {
     else if (entry.type === 'spend') await updateDoc(gref, { spent: increment(entry.amount) })
   }
   const editGoal = async (goalId: string, fields: any) => {
-    await updateDoc(doc(db, 'goals', goalId), { name: fields.name, target: fields.target, targetDate: fields.targetDate })
+    await updateDoc(doc(db, 'goals', goalId), {
+      name: fields.name, target: fields.target, targetDate: fields.targetDate,
+      status: fields.status, color: fields.color, note: fields.note || null,
+    })
   }
   const deleteBucket = async (id: string) => { setOverlay(null); await deleteDoc(doc(db, 'goals', id)) }
 
@@ -143,7 +147,7 @@ export default function App() {
     let screen: JSX.Element | null = null
     if (tab === 'home') screen = <Home data={data} nav={nav} />
     else if (tab === 'spending') screen = <Spending data={data} nav={nav} sub={spendSub} setSub={setSpendSub} />
-    else if (tab === 'buckets') screen = <Buckets data={data} nav={nav} />
+    else if (tab === 'buckets') screen = <Buckets data={data} nav={nav} sub={bucketSub} setSub={setBucketSub} />
     else if (tab === 'assets') screen = <Assets data={data} nav={nav} />
     else if (tab === 'keela') screen = <Keela data={data} nav={nav} sub={keelaSub} setSub={setKeelaSub} />
 

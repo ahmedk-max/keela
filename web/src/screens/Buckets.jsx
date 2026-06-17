@@ -1,10 +1,10 @@
 /* Keela — Buckets: saving goals (ported, wired to data) */
 import React from 'react'
-import { Progress, Tag, Empty, Sheet, Badge } from '../ui/primitives'
+import { Progress, Tag, Empty, Sheet, Badge, Segmented, Icons } from '../ui/primitives'
 import { getEntry } from '../lib/icons'
 import { fmt, fmtDate, MONTH_ABBR } from '../lib/format'
-import { CategoryBars } from './spending-extras'
-import { bucketStats, monthsLeft, monthlyNeeded, ContributionChart } from './bucket-extras'
+import { Ring } from './home-extras'
+import { bucketStats, monthsLeft, monthlyNeeded, goalBalance, ContributionChart } from './bucket-extras'
 
 const TODAY = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
 
@@ -22,117 +22,85 @@ const entryStyle = {
   spend: { sign: '−', cls: 'k-loss', label: 'Spent' },
 }
 
-function BucketCard({ g, onClick }) {
+/* ---------- Ring card — circular progress per goal ---------- */
+function BucketRingCard({ g, onClick }) {
   const spent = g.spent || 0
-  const balance = g.allocated - spent
+  const balance = goalBalance(g)
   const completed = g.status === 'completed'
   const drawdown = completed && spent > 0
   const fundedHeld = completed && spent === 0
-  const pct = Math.round(balance / g.target * 100)
-  const left = balance
-  const monthly = monthlyNeeded(g)
-  const ml = monthsLeft(g)
+  const paused = g.status === 'paused'
+  const targetPct = g.target > 0 ? Math.round(balance / g.target * 100) : 0
+  const usedPct = g.allocated > 0 ? Math.round(spent / g.allocated * 100) : 0
+
+  let ringPct, ringColor, center, amtMain, amtSub, cap
+  if (drawdown) {
+    ringPct = usedPct; ringColor = 'var(--qahwa-flat)'
+    center = <><span className="k-bkring-pct" style={{ color: ringColor }}>{usedPct}%</span><span className="k-bkring-sub">used</span></>
+    amtMain = fmt(balance); amtSub = 'left'; cap = fmt(spent) + ' of ' + fmt(g.allocated) + ' spent'
+  } else if (fundedHeld) {
+    ringPct = 100; ringColor = g.color
+    center = <span className="k-bkring-check" style={{ color: ringColor }}>{Icons.check}</span>
+    amtMain = fmt(balance); amtSub = 'held'; cap = 'Funded · ' + fmtTargetMonth(g.targetDate)
+  } else if (paused) {
+    ringPct = targetPct; ringColor = 'var(--qahwa-flat)'
+    center = <span className="k-bkring-pct" style={{ color: 'var(--qahwa-fg-3)' }}>{targetPct}%</span>
+    amtMain = fmt(balance); amtSub = 'of ' + fmt(g.target); cap = 'Paused'
+  } else {
+    ringPct = targetPct; ringColor = g.color
+    center = <span className="k-bkring-pct" style={{ color: ringColor }}>{targetPct}%</span>
+    amtMain = fmt(balance); amtSub = 'of ' + fmt(g.target)
+    cap = fmt(monthlyNeeded(g)) + '/mo · ' + monthsLeft(g) + ' mo left'
+  }
 
   return (
-    <div className="k-bucket-card" role="button" tabIndex={0} onClick={onClick} style={{ width: '100%', textAlign: 'left', padding: '16px 0', cursor: 'pointer', borderTop: '1px solid var(--qahwa-border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span className="k-swatch" style={{ width: 12, height: 12, background: g.color }} />
-        <span style={{ font: '600 14px/1.2 var(--qahwa-font-ui)', flex: 1 }}>{g.name}</span>
-        {statusTag(g.status)}
-      </div>
+    <button className={'k-bkcard' + (paused ? ' paused' : '')} onClick={onClick}>
+      <span className="k-bkring">
+        <Ring pct={ringPct} color={ringColor} size={80} stroke={6} />
+        <span className="k-bkring-lbl">{center}</span>
+      </span>
+      <span className="k-bkcard-name">{g.name}</span>
+      <span className="k-bkcard-amt">{amtMain} <span style={{ color: 'var(--qahwa-fg-3)' }}>{amtSub}</span></span>
+      <span className="k-bkcard-cap">{cap}</span>
+    </button>
+  )
+}
 
-      {drawdown ? (
-        <React.Fragment>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 9 }}>
-            <span className="k-num" style={{ fontSize: 19, fontWeight: 600 }}>{fmt(left)}<span className="k-label dim" style={{ marginLeft: 6 }}>left</span></span>
-            <span className="k-num" style={{ fontSize: 11, color: 'var(--qahwa-fg-3)' }}>{fmt(spent)} spent / {fmt(g.allocated)}</span>
-          </div>
-          <Progress pct={spent / g.allocated * 100} color="var(--qahwa-flat)" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span className="k-num" style={{ fontSize: 11, color: 'var(--qahwa-flat)', fontWeight: 600 }}>{Math.round(spent / g.allocated * 100)}% used</span>
-            <span className="k-label dim">Reached {fmtTargetMonth(g.targetDate)}</span>
-          </div>
-        </React.Fragment>
-      ) : fundedHeld ? (
-        <React.Fragment>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 9 }}>
-            <span className="k-num" style={{ fontSize: 19, fontWeight: 600 }}>{fmt(g.allocated)}<span className="k-label dim" style={{ marginLeft: 6 }}>held</span></span>
-            <span className="k-label dim">Fully funded</span>
-          </div>
-          <Progress pct={100} color={g.color} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span className="k-num k-gain" style={{ fontSize: 11, fontWeight: 600 }}>100%</span>
-            <span className="k-label dim">Reached {fmtTargetMonth(g.targetDate)}</span>
-          </div>
-        </React.Fragment>
-      ) : (
-        <React.Fragment>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 9 }}>
-            <span className="k-num" style={{ fontSize: 19, fontWeight: 600 }}>{fmt(balance)}</span>
-            <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>of {fmt(g.target)}</span>
-          </div>
-          <Progress pct={pct} color={g.color} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span className="k-num" style={{ fontSize: 11, color: g.color, fontWeight: 600 }}>{pct}%</span>
-            <span className="k-label dim">Target {fmtTargetMonth(g.targetDate)}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 11, paddingTop: 10, borderTop: '1px solid var(--qahwa-border)' }}>
-            {g.status === 'paused' ? (
-              <span className="k-micro" style={{ letterSpacing: '0.04em' }}>Paused &middot; resume to track contribution</span>
-            ) : (
-              <React.Fragment>
-                <span className="k-micro" style={{ letterSpacing: '0.04em' }}>
-                  <span className="k-num k-em" style={{ fontSize: 12, fontWeight: 600 }}>{fmt(monthly)}/mo</span> to finish
-                </span>
-                <span className="k-label dim">{ml} mo left</span>
-              </React.Fragment>
-            )}
-          </div>
-        </React.Fragment>
-      )}
+function RingGrid({ goals, nav }) {
+  return (
+    <div className="k-bkgrid">
+      {goals.map((g) => <BucketRingCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} />)}
     </div>
   )
 }
 
-function CardList({ goals, nav }) {
-  return goals.map((g) => <BucketCard key={g.id} g={g} onClick={() => nav.openBucket(g.id)} />)
-}
-
-export function Buckets({ data, nav }) {
-  const { goals, profile } = data
+/* ---------- Saving: goals you're still funding, or holding untouched ---------- */
+function SavingView({ goals, profile, nav }) {
   const s = bucketStats(goals, profile)
-  const { active, paused, completed, netSavings, totalSaved, alloc } = s
-  const { fundedPct, ongoingTarget, requiredMonthly, saveBudget, headroom } = s
+  const { active, paused, fundedReady, netSavings, alloc } = s
+  const { fundedPct, ongoingTarget, remaining, requiredMonthly, saveBudget, headroom } = s
   const short = headroom < 0
   const pressureCol = short ? 'var(--qahwa-loss)' : 'var(--qahwa-gain)'
   const pressurePct = saveBudget > 0 ? (requiredMonthly / saveBudget) * 100 : (requiredMonthly > 0 ? 100 : 0)
-  // active goals: closest-to-done first — momentum at the top
-  const activeSorted = [...active].sort((a, b) =>
-    ((b.allocated - (b.spent || 0)) / b.target) - ((a.allocated - (a.spent || 0)) / a.target))
+  // active goals closest-to-done first (momentum up top), paused trailing
+  const activeSorted = [...active].sort((a, b) => (goalBalance(b) / b.target) - (goalBalance(a) / a.target))
+  const inProgress = [...activeSorted, ...paused]
 
   return (
-    <div className="k-screen">
-      <div className="k-phead">
-        <div><div className="k-htitle">Savings Goals</div></div>
-        <div className="k-asof">{active.length} active<br />{goals.length} total</div>
-      </div>
-
+    <div>
       {/* OVERVIEW — money held + where it lives */}
       <div className="k-sec" style={{ marginTop: 18 }}>
-        <div className="k-sec-head"><span className="k-label">Net savings &middot; held now</span><span className="k-micro">{alloc.length} buckets</span></div>
+        <div className="k-sec-head"><span className="k-label">Net savings &middot; held now</span><span className="k-micro">{alloc.length} bucket{alloc.length === 1 ? '' : 's'}</span></div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
           <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}>{fmt(netSavings)}<span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
-          <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>{fmt(totalSaved)} saved lifetime</span>
+          <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>{remaining > 0 ? fmt(remaining) + ' to go' : 'all funded'}</span>
         </div>
         {alloc.length > 0 && (
-          <React.Fragment>
-            <div className="k-flowbar">
-              {alloc.map((a) => (
-                <div key={a.cat} className="k-flowbar-seg" style={{ width: (a.amount / netSavings * 100) + '%', background: a.color }} />
-              ))}
-            </div>
-            <div style={{ marginTop: 16 }}><CategoryBars cats={alloc} total={netSavings} /></div>
-          </React.Fragment>
+          <div className="k-flowbar">
+            {alloc.map((a) => (
+              <div key={a.cat} className="k-flowbar-seg" style={{ width: (a.amount / netSavings * 100) + '%', background: a.color }} />
+            ))}
+          </div>
         )}
       </div>
 
@@ -153,40 +121,101 @@ export function Buckets({ data, nav }) {
         <div className="k-figs">
           <div className="k-fig"><span className="k-fig-val">{fundedPct}%</span><span className="k-label dim">Goals funded</span></div>
           <div className="k-fig"><span className="k-fig-val">{fmt(ongoingTarget)}</span><span className="k-label dim">Open target</span></div>
-          <div className="k-fig"><span className="k-fig-val">{completed.length}</span><span className="k-label dim">Completed</span></div>
+          <div className="k-fig"><span className="k-fig-val">{active.length + paused.length}</span><span className="k-label dim">In progress</span></div>
         </div>
       </div>
 
-      {/* ACTIVE */}
+      {/* GOALS — active first (closest to done), paused trailing & muted */}
       <div className="k-sec div" style={{ paddingBottom: 0 }}>
         <div className="k-sec-head" style={{ marginBottom: 0 }}>
-          <span className="k-label">Active goals</span>
+          <span className="k-label">Goals</span>
           <span className="k-num k-em" style={{ fontSize: 11, fontWeight: 600 }}>{fmt(requiredMonthly)}/mo</span>
         </div>
       </div>
       <div className="k-sec" style={{ marginTop: 0 }}>
-        {activeSorted.length ? <CardList goals={activeSorted} nav={nav} /> : <Empty>No active buckets. Every goal is funded or paused.</Empty>}
+        {inProgress.length ? <RingGrid goals={inProgress} nav={nav} /> : <Empty>No goals in progress. Everything is funded.</Empty>}
       </div>
 
-      {/* PAUSED */}
-      {paused.length > 0 && (
+      {/* FUNDED & READY — completed goals, not yet touched */}
+      {fundedReady.length > 0 && (
         <React.Fragment>
           <div className="k-sec div" style={{ paddingBottom: 0 }}>
-            <div className="k-sec-head" style={{ marginBottom: 0 }}><span className="k-label">Paused</span><span className="k-micro">{paused.length}</span></div>
+            <div className="k-sec-head" style={{ marginBottom: 0 }}><span className="k-label">Funded &amp; ready</span><span className="k-micro">{fundedReady.length}</span></div>
           </div>
-          <div className="k-sec" style={{ marginTop: 0 }}><CardList goals={paused} nav={nav} /></div>
+          <div className="k-sec" style={{ marginTop: 0 }}><RingGrid goals={fundedReady} nav={nav} /></div>
         </React.Fragment>
       )}
+    </div>
+  )
+}
 
-      {/* COMPLETED */}
-      {completed.length > 0 && (
-        <React.Fragment>
-          <div className="k-sec div" style={{ paddingBottom: 0 }}>
-            <div className="k-sec-head" style={{ marginBottom: 0 }}><span className="k-label">Completed &amp; spent</span><span className="k-micro">{completed.length}</span></div>
-          </div>
-          <div className="k-sec" style={{ marginTop: 0 }}><CardList goals={completed} nav={nav} /></div>
-        </React.Fragment>
-      )}
+/* ---------- In use: completed goals you're drawing down ---------- */
+function InUseView({ goals, nav }) {
+  if (!goals.length) {
+    return <div className="k-sec" style={{ marginTop: 18 }}><Empty>Nothing in use yet. Completed goals you start spending from show up here.</Empty></div>
+  }
+  const funded = goals.reduce((s, g) => s + (g.allocated || 0), 0)
+  const spent = goals.reduce((s, g) => s + (g.spent || 0), 0)
+  const left = goals.reduce((s, g) => s + goalBalance(g), 0)
+  const pctUsed = funded > 0 ? Math.round((spent / funded) * 100) : 0
+
+  return (
+    <div>
+      {/* OVERVIEW — how much of the funded pots is left */}
+      <div className="k-sec" style={{ marginTop: 18 }}>
+        <div className="k-sec-head"><span className="k-label">In use &middot; left to spend</span><span className="k-micro">{goals.length} bucket{goals.length === 1 ? '' : 's'}</span></div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
+          <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}>{fmt(left)}<span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
+          <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>of {fmt(funded)} funded</span>
+        </div>
+        <div className="k-flowbar">
+          {spent > 0 && <div className="k-flowbar-seg" style={{ width: (spent / funded * 100) + '%', background: 'var(--qahwa-flat)' }} />}
+          {left > 0 && <div className="k-flowbar-seg" style={{ width: (left / funded * 100) + '%', background: 'var(--qahwa-gain)' }} />}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9 }}>
+          <span className="k-num" style={{ fontSize: 11, fontWeight: 600, color: 'var(--qahwa-flat)' }}>{fmt(spent)} spent</span>
+          <span className="k-label dim">{pctUsed}% used</span>
+        </div>
+        <div className="k-figs">
+          <div className="k-fig"><span className="k-fig-val">{fmt(funded)}</span><span className="k-label dim">Funded</span></div>
+          <div className="k-fig"><span className="k-fig-val k-loss">{fmt(spent)}</span><span className="k-label dim">Spent</span></div>
+          <div className="k-fig"><span className="k-fig-val k-gain">{fmt(left)}</span><span className="k-label dim">Left</span></div>
+        </div>
+      </div>
+
+      <div className="k-sec div" style={{ paddingBottom: 0 }}>
+        <div className="k-sec-head" style={{ marginBottom: 0 }}><span className="k-label">Drawing down</span><span className="k-micro">{goals.length}</span></div>
+      </div>
+      <div className="k-sec" style={{ marginTop: 0 }}><RingGrid goals={goals} nav={nav} /></div>
+    </div>
+  )
+}
+
+export function Buckets({ data, nav, sub, setSub }) {
+  const { goals, profile } = data
+  // "In use" = a goal you're drawing down — but an active goal stays in Saving
+  // even if it's been dipped into.
+  const isInUse = (g) => g.status !== 'active' && (g.spent || 0) > 0
+  const inUse = goals.filter(isInUse)
+  const saving = goals.filter((g) => !isInUse(g))
+  const activeCount = goals.filter((g) => g.status === 'active').length
+
+  return (
+    <div className="k-screen">
+      <div className="k-phead">
+        <div><div className="k-htitle">Savings Goals</div></div>
+        <div className="k-asof">{activeCount} active<br />{goals.length} total</div>
+      </div>
+      <div className="k-sec" style={{ marginTop: 14 }}>
+        <Segmented
+          items={[{ v: 'saving', label: 'Saving' }, { v: 'inuse', label: 'In use' }]}
+          value={sub} onChange={setSub} />
+      </div>
+      <div key={sub}>
+        {sub === 'inuse'
+          ? <InUseView goals={inUse} nav={nav} />
+          : <SavingView goals={saving} profile={profile} nav={nav} />}
+      </div>
     </div>
   )
 }
@@ -359,10 +388,18 @@ export function BucketSheet({ goal, mode, onClose, onSave }) {
   )
 }
 
+const GOAL_COLORS = [
+  'var(--qahwa-accent)', 'var(--qahwa-latte)', 'var(--qahwa-brewed)',
+  'var(--qahwa-espresso)', 'var(--qahwa-bean)', 'var(--qahwa-flat)',
+]
+
 export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
   const [name, setName] = React.useState(goal.name)
   const [target, setTarget] = React.useState(String(goal.target))
   const [tdate, setTdate] = React.useState(goal.targetDate)
+  const [status, setStatus] = React.useState(goal.status || 'active')
+  const [color, setColor] = React.useState(goal.color || GOAL_COLORS[0])
+  const [note, setNote] = React.useState(goal.note || '')
   const valid = name.trim() && parseFloat(target) > 0
   return (
     <Sheet title={'Edit · ' + goal.name} onClose={onClose}>
@@ -373,6 +410,21 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
             <input className="k-input" value={name} onChange={(e) => setName(e.target.value)} data-autofocus />
           </div>
           <div className="k-field">
+            <span className="k-label dim">Status</span>
+            <Segmented items={[{ v: 'active', label: 'Active' }, { v: 'paused', label: 'Paused' }, { v: 'completed', label: 'Done' }]}
+              value={status} onChange={setStatus} />
+          </div>
+          <div className="k-field">
+            <span className="k-label dim">Colour</span>
+            <div className="k-swatchrow">
+              {GOAL_COLORS.map((c) => (
+                <button key={c} type="button" aria-label="colour"
+                  className={'k-swatchbtn' + (color === c ? ' on' : '')}
+                  style={{ background: c }} onClick={() => setColor(c)} />
+              ))}
+            </div>
+          </div>
+          <div className="k-field">
             <span className="k-label dim">Target &middot; SAR</span>
             <input className="k-input k-num" inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} />
           </div>
@@ -380,8 +432,13 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
             <span className="k-label dim">Target month</span>
             <input className="k-input k-num" type="month" value={tdate} onChange={(e) => setTdate(e.target.value)} />
           </div>
+          <div className="k-field">
+            <span className="k-label dim">Note &middot; optional</span>
+            <textarea className="k-input" rows={2} placeholder="Add a note" value={note}
+              style={{ resize: 'none', lineHeight: 1.4 }} onChange={(e) => setNote(e.target.value)} />
+          </div>
           <button className="k-btn accent full" style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
-            onClick={() => { if (valid) { onSave(goal.id, { name: name.trim(), target: parseInt(target, 10), targetDate: tdate }); close() } }}>
+            onClick={() => { if (valid) { onSave(goal.id, { name: name.trim(), target: parseInt(target, 10), targetDate: tdate, status, color, note: note.trim() }); close() } }}>
             SAVE CHANGES
           </button>
           <button className="k-btn ghost full" style={{ marginTop: 10, color: 'var(--qahwa-loss)', borderColor: 'var(--qahwa-loss)' }}

@@ -594,6 +594,39 @@
 .k-goalcard-pct { font-size: 13px; font-weight: 600; line-height: 1; }
 .k-goalcard-amt { font-size: 11px; color: var(--qahwa-fg-1); white-space: nowrap;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* bucket ring-card grid — circular showcase of each goal */
+.k-bkgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.k-bkcard { background: var(--qahwa-canvas); border: 1px solid var(--qahwa-border);
+  padding: 16px 12px 14px; display: flex; flex-direction: column; align-items: center;
+  gap: 9px; text-align: center; cursor: pointer; -webkit-appearance: none; appearance: none;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-bkcard:active { background: var(--qahwa-surface); }
+.k-bkring { position: relative; display: inline-flex; }
+.k-bkring-lbl { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; }
+.k-bkring-pct { font: 600 17px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1; }
+.k-bkring-sub { font: 600 7px/1 var(--qahwa-font-ui); letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--qahwa-fg-3); }
+.k-bkring-check svg { width: 24px; height: 24px; display: block; }
+.k-bkcard-name { font: 600 13px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-bkcard-amt { font: 500 12px/1.2 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
+  color: var(--qahwa-fg-1); }
+.k-bkcard-cap { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.02em;
+  color: var(--qahwa-fg-3); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* colour swatch picker (edit bucket sheet) */
+.k-swatchrow { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.k-swatchbtn { width: 34px; height: 34px; border: 1px solid var(--qahwa-border); cursor: pointer;
+  -webkit-appearance: none; appearance: none; padding: 0;
+  transition: box-shadow var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-swatchbtn.on { box-shadow: 0 0 0 2px var(--qahwa-canvas), 0 0 0 4px var(--qahwa-fg-1); }
+
+/* paused goals sit in the same grid, just dialled back */
+.k-bkcard.paused { background: var(--qahwa-surface); border-style: dashed; }
+.k-bkcard.paused .k-bkcard-name, .k-bkcard.paused .k-bkcard-amt { color: var(--qahwa-fg-2); }
+.k-bkcard.paused .k-bkcard-cap { letter-spacing: 0.1em; text-transform: uppercase; }
+
 .fade-in { animation: kin var(--qahwa-motion-slow) var(--qahwa-ease); }
 @keyframes kin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
