@@ -141,6 +141,12 @@ export function IncomeSettingsSheet({ profile, income, onClose, onSave }) {
         ); close() }}>
         SAVE SETTINGS
       </button>
+
+      {/* Build stamp — confirms the installed PWA is running the latest deploy
+          (the service worker can otherwise serve a stale cached build). */}
+      <div className="k-label dim" style={{ textAlign: 'center', marginTop: 18, opacity: 0.6 }}>
+        Keela &middot; build {__BUILD_ID__} UTC
+      </div>
         </>
       )}
     </Sheet>

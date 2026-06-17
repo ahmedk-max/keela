@@ -50,6 +50,15 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { localStorage.setItem('keela.theme', theme) }, [theme])
+  // Mirror theme/density onto <html> so the theme variables cascade all the way
+  // up to <html>/<body>. Without this the body keeps the light parchment canvas
+  // in dark mode and leaks white through the bottom safe-area (the tab-bar gap).
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    document.documentElement.setAttribute('data-density', density)
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1B1510' : '#FAF9F5')
+  }, [theme, density])
   useEffect(() => { localStorage.setItem('keela.tab', tab) }, [tab])
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [tab])
 

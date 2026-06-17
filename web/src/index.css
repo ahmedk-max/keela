@@ -5,16 +5,23 @@ html,
 body {
   height: 100%;
   margin: 0;
-  /* parchment everywhere so no white ever peeks through the safe areas */
+  /* theme canvas everywhere so no white ever peeks through the safe areas.
+     `data-theme` is mirrored onto <html> (see App.tsx) so this resolves to the
+     dark canvas in dark mode instead of falling back to the light :root value. */
   background: var(--qahwa-canvas);
 }
+/* native scrollbars / overscroll glow follow the active theme on <html> */
+html { color-scheme: light; }
+html[data-theme='dark'] { color-scheme: dark; }
 
 /* Pin the app to the visual viewport. Using fixed/inset instead of a height:%
    chain avoids the iOS standalone-PWA gap where 100dvh comes up short of the
-   real screen and leaves white below the tab bar. */
+   real screen and leaves white below the tab bar. Paint the canvas here too so
+   that even if a platform mis-measures the box, what shows is themed, not white. */
 #root {
   position: fixed;
   inset: 0;
+  background: var(--qahwa-canvas);
 }
 
 body {
@@ -28,9 +35,13 @@ body {
   height: max(10px, env(safe-area-inset-top));
 }
 /* Tab bar floats at the bottom of the whole app (above detail views, below sheets)
-   so opening a bucket/asset never hides it. */
+   so opening a bucket/asset never hides it. Anchored with position:fixed so it
+   pins to the real viewport bottom — not to .k-root, whose height can come up
+   short in a standalone PWA and leave the bar floating above the screen edge.
+   The padding-bottom carries the bar's surface colour down through the home-
+   indicator safe area so nothing white shows beneath it. */
 .k-tabbar {
-  position: absolute;
+  position: fixed;
   left: 0;
   right: 0;
   bottom: 0;

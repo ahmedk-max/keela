@@ -7,8 +7,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 //
 // Deployed to GitHub Pages at https://<user>.github.io/keela/ — so the production
 // build is served from the "/keela/" sub-path. Dev stays at "/".
+// A short, human-readable build stamp surfaced in Settings so it's obvious
+// whether an installed PWA has actually picked up a new deploy (the service
+// worker can otherwise keep serving a stale cached build).
+const BUILD_ID = new Date()
+  .toISOString()
+  .slice(0, 16)
+  .replace('T', ' ')
+
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/keela/' : '/',
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
     VitePWA({
