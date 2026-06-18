@@ -14,13 +14,22 @@ body {
 html { color-scheme: light; }
 html[data-theme='dark'] { color-scheme: dark; }
 
-/* Pin the app to the visual viewport. Using fixed/inset instead of a height:%
-   chain avoids the iOS standalone-PWA gap where 100dvh comes up short of the
-   real screen and leaves white below the tab bar. Paint the canvas here too so
-   that even if a platform mis-measures the box, what shows is themed, not white. */
+/* Fill the real screen in an installed iOS PWA. `inset:0` (top:0;bottom:0) and
+   `100dvh` both resolve against the home-indicator viewport, which iOS reports
+   short of the physical screen in standalone mode — so the shell stops above the
+   bottom and page canvas shows below the tab bar. `100vh` is the large (ICB)
+   viewport = the full screen in standalone, so the shell reaches the bottom edge
+   (this is how the working Wirehouse shell sizes itself). Still position:fixed
+   (pinned at the top) so the body never scrolls, and paint the canvas here so a
+   platform that still mis-measures the box shows themed colour, not white. The
+   .k-tabbar box-shadow below is the belt-and-suspenders backstop that paints the
+   bar's surface across any residual home-indicator shortfall. */
 #root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
   background: var(--qahwa-canvas);
 }
 
