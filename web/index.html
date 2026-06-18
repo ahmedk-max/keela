@@ -11,7 +11,12 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- `default` (not black-translucent): in an installed iOS PWA, black-translucent
+         can make env(safe-area-inset-*) report 0, so the home-indicator inset is lost
+         and bottom content (tab bar, sheet buttons) gets clipped. `default` restores
+         proper safe-area insets — matching the Wirehouse shell, where they work. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Keela" />
     <title>Keela</title>
   </head>
