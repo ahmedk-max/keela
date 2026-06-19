@@ -37,6 +37,58 @@ export function Delta({ value, pct, dp = 0, abs = false }) {
   )
 }
 
+/* ---------- reduced-motion check ---------- */
+export const prefersReduced = () =>
+  typeof window !== 'undefined' && window.matchMedia &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/* ---------- Count-up number — eases to value on mount and on change ----------
+   The fill of bars rises with CSS; the figures count up here in lockstep. Starts
+   from 0 on mount, animates from the previous value on live updates. */
+export function CountUp({ value, dp = 0, duration = 650, className = '', style }) {
+  const [display, setDisplay] = useState(0)
+  const fromRef = useRef(0)
+  const rafRef = useRef(0)
+  useEffect(() => {
+    const from = fromRef.current
+    const to = Number(value) || 0
+    if (prefersReduced() || from === to) { setDisplay(to); fromRef.current = to; return }
+    let start = null
+    const ease = (t) => 1 - Math.pow(1 - t, 3) // easeOutCubic
+    const step = (ts) => {
+      if (start === null) start = ts
+      const t = Math.min(1, (ts - start) / duration)
+      setDisplay(from + (to - from) * ease(t))
+      if (t < 1) rafRef.current = requestAnimationFrame(step)
+      else fromRef.current = to
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [value, duration])
+  return <span className={className} style={style}>{fmt(display, dp)}</span>
+}
+
+/* ---------- Floating quick-add button (the daily action, always a thumb away) --- */
+export function Fab({ onClick, label = 'Add transaction' }) {
+  return (
+    <button className="k-fab" onClick={onClick} aria-label={label}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+    </button>
+  )
+}
+
+/* ---------- Keela whisper — a quiet, derived one-liner in her voice ---------- */
+export function KeelaWhisper({ children }) {
+  if (!children) return null
+  return (
+    <div className="k-whisper">
+      <span className="k-ember" />
+      <span className="k-whisper-txt">{children}</span>
+    </div>
+  )
+}
+
 /* ---------- Trend path builder ---------- */
 export function buildTrend(values, w, h, padTop = 6, padBot = 6) {
   const min = Math.min(...values), max = Math.max(...values)

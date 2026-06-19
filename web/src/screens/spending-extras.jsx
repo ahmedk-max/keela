@@ -1,7 +1,7 @@
 /* Keela — Spending analytics: month-over-month stats, a cumulative pacing chart,
    and a category breakdown. Minimal SVG, Qahwa palette. */
 import { fmt, fmtDay } from '../lib/format'
-import { CAT } from '../lib/icons'
+import { CAT, getCat } from '../lib/icons'
 import { EChart, hexToRgba } from '../ui/echart'
 
 /* ---------- date helpers (ISO YYYY-MM-DD) ---------- */
@@ -111,21 +111,39 @@ export function DailySpendChart({ daily, avg, elapsed, cycleStart }) {
   return <EChart make={make} sig={sig} height={100} ariaLabel="Daily spend this cycle" />
 }
 
-/* ---------- Category breakdown bars ---------- */
-export function CategoryBars({ cats, total }) {
+/* ---------- Category breakdown bars ----------
+   Glyph + colour per category. When a per-category budget exists, the bar shows a
+   cap marker on the track, turns red over the cap, and the figure reads % of cap.
+   Rows are tappable (when onEdit is given) to set/clear that category's budget. */
+export function CategoryBars({ cats, total, budgets = {}, onEdit }) {
   if (!cats.length) return null
   const max = cats[0].amount || 1
+  const Row = onEdit ? 'button' : 'div'
   return (
     <div className="k-catbars">
-      {cats.map((c) => (
-        <div className="k-catbar" key={c.cat}>
-          <span className="k-catbar-dot" style={{ background: c.color }} />
-          <span className="k-catbar-name">{c.cat}</span>
-          <span className="k-catbar-track"><i style={{ width: Math.max(2, c.amount / max * 100) + '%', background: c.color }} /></span>
-          <span className="k-catbar-val k-num">{fmt(c.amount)}</span>
-          <span className="k-catbar-pct">{total ? Math.round(c.amount / total * 100) : 0}%</span>
-        </div>
-      ))}
+      {cats.map((c) => {
+        const meta = getCat(c.cat)
+        const cap = budgets[c.cat] || 0
+        const over = cap > 0 && c.amount > cap
+        const capPct = cap > 0 ? Math.min(100, (cap / max) * 100) : null
+        return (
+          <Row className="k-catbar" key={c.cat}
+            {...(onEdit ? { type: 'button', onClick: () => onEdit(c.cat, cap) } : {})}>
+            {meta
+              ? <span className="k-catbar-ic" style={{ '--c': c.color }}>{meta.icon}</span>
+              : <span className="k-catbar-dot" style={{ background: c.color }} />}
+            <span className="k-catbar-name">{c.cat}</span>
+            <span className="k-catbar-track">
+              <i style={{ width: Math.max(2, (c.amount / max) * 100) + '%', background: over ? 'var(--qahwa-loss)' : c.color }} />
+              {capPct != null && <span className="k-catbar-cap" style={{ left: capPct + '%' }} />}
+            </span>
+            <span className="k-catbar-val k-num">{fmt(c.amount)}</span>
+            <span className="k-catbar-pct" style={over ? { color: 'var(--qahwa-loss)' } : undefined}>
+              {cap > 0 ? Math.round((c.amount / cap) * 100) + '%' : (total ? Math.round((c.amount / total) * 100) : 0) + '%'}
+            </span>
+          </Row>
+        )
+      })}
     </div>
   )
 }

@@ -173,6 +173,7 @@ export function buildData(raw) {
     split: p.split || { save: 70, live: 30 },
     pactStart: p.pactStart || '2024-10',
     pactEnd: p.pactEnd || '2027-10',
+    categoryBudgets: p.categoryBudgets || {},
     netWorth,
   }
 

@@ -1,6 +1,6 @@
 /* Keela — Buckets: saving goals (ported, wired to data) */
 import React from 'react'
-import { Progress, Tag, Empty, Sheet, Badge, Segmented, Icons } from '../ui/primitives'
+import { Progress, Tag, Empty, Sheet, Badge, Segmented, Icons, CountUp } from '../ui/primitives'
 import { getEntry } from '../lib/icons'
 import { fmt, fmtDate, MONTH_ABBR } from '../lib/format'
 import { Ring } from './home-extras'
@@ -95,7 +95,7 @@ function SavingView({ goals, allGoals, profile, nav }) {
       <div className="k-sec" style={{ marginTop: 18 }}>
         <div className="k-sec-head"><span className="k-label">Net savings &middot; held now</span><span className="k-micro">{alloc.length} bucket{alloc.length === 1 ? '' : 's'}</span></div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}>{fmt(netSavings)}<span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
+          <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}><CountUp value={netSavings} /><span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
           <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>{remaining > 0 ? fmt(remaining) + ' to go' : 'all funded'}</span>
         </div>
         {alloc.length > 0 && (

@@ -135,5 +135,9 @@ body {
   .fade-in,
   .k-overlay > .k-sheet,
   .k-overlay::before,
-  .k-detail { animation-duration: 1ms !important; }
+  .k-detail,
+  .k-fab,
+  .k-bar > i,
+  .k-catbar-track > i,
+  .k-flowbar-seg { animation-duration: 1ms !important; }
 }

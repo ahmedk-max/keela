@@ -1,7 +1,7 @@
 /* Keela — Home extras: bucket rings, cashflow river, income settings (ported) */
 import React from 'react'
 import { fmt, monthsBetween, NOW_MONTH } from '../lib/format'
-import { Sheet, Icons } from '../ui/primitives'
+import { Sheet, Icons, prefersReduced } from '../ui/primitives'
 
 export function hxMonthsLeft(g) { return Math.max(0, monthsBetween(NOW_MONTH, g.targetDate)) }
 export function hxMonthly(g) {
@@ -14,7 +14,14 @@ export function hxMonthly(g) {
 /* ---------- Ring (circular progress) ---------- */
 export function Ring({ pct, color = 'var(--qahwa-accent)', size = 46, stroke = 4, track = 'var(--qahwa-surface-sunk)' }) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r, cc = size / 2
-  const off = c * (1 - Math.min(1, Math.max(0, pct / 100)))
+  // sweep up from empty on mount — the dash-offset transition does the work
+  const [shown, setShown] = React.useState(() => (prefersReduced() ? pct : 0))
+  React.useEffect(() => {
+    if (prefersReduced()) { setShown(pct); return }
+    const id = requestAnimationFrame(() => setShown(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+  const off = c * (1 - Math.min(1, Math.max(0, shown / 100)))
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', flex: 'none' }}>
       <circle cx={cc} cy={cc} r={r} fill="none" stroke={track} strokeWidth={stroke} />

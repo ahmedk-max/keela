@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  addDoc, collection, deleteDoc, doc, increment, serverTimestamp, setDoc, updateDoc,
+  addDoc, collection, deleteDoc, deleteField, doc, increment, serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore'
 import { db } from './lib/firebase'
+import { NOW_MONTH } from './lib/format'
+import { DEMO } from './data/demo'
 import { useAuth } from './auth/AuthContext'
 import { useKeelaData } from './data/useKeelaData'
-import { TabGlyph } from './ui/primitives'
+import { TabGlyph, Fab } from './ui/primitives'
 import { Lock, Loading } from './screens/Lock'
 import { Home } from './screens/Home'
-import { Spending, TxSheet, BillSheet, UpcomingSheet, WishlistSheet } from './screens/Spending'
+import { Spending, TxSheet, BillSheet, UpcomingSheet, WishlistSheet, CategoryBudgetSheet } from './screens/Spending'
 import { Buckets, BucketDetail, BucketSheet, EditBucketSheet } from './screens/Buckets'
 import { Assets, AssetDetail } from './screens/Assets'
 import { Keela, MeetingDetail } from './screens/Keela'
@@ -62,6 +64,25 @@ export default function App() {
   useEffect(() => { localStorage.setItem('keela.tab', tab) }, [tab])
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [tab])
 
+  // Capture a monthly snapshot once per session so trend charts (net worth,
+  // savings rate) have real history. No Cloud Functions — the client upserts
+  // snapshots/{YYYY-MM} on open; merge keeps the current month fresh each visit.
+  const snappedRef = useRef(false)
+  useEffect(() => {
+    if (DEMO || !user || dataLoading || snappedRef.current || !data?.profile) return
+    const cf = data.cashflow
+    if (!data.netWorth && !cf.income) return // data still streaming in — try next session
+    snappedRef.current = true
+    setDoc(doc(db, 'snapshots', NOW_MONTH), {
+      monthKey: NOW_MONTH,
+      netWorth: data.netWorth,
+      totalIncome: cf.income,
+      totalExpenses: data.thisMonth.spending,
+      savingsRate: cf.rate,
+      createdAt: serverTimestamp(),
+    }, { merge: true }).catch((e) => console.error('snapshot failed', e))
+  }, [user, dataLoading, data])
+
   const goTab = (v: string) => { setOverlay(null); setTab(v) }
 
   // ----- Firestore write handlers (write-only; sheets animate themselves closed) -----
@@ -110,6 +131,13 @@ export default function App() {
   }
   const deleteWish = async (id: string) => { await deleteDoc(doc(db, 'wishlist', String(id))) }
 
+  // Per-category variable budgets live as a map on the profile doc. amount 0 clears.
+  const saveCatBudget = async (cat: string, amount: number) => {
+    await updateDoc(doc(db, 'profile', 'main'), {
+      [`categoryBudgets.${cat}`]: amount > 0 ? amount : deleteField(),
+    })
+  }
+
   const saveSettings = async (profile: any, income: any[]) => {
     const salary = income.find((s) => s.id === 'salary')
     await updateDoc(doc(db, 'profile', 'main'), {
@@ -136,6 +164,7 @@ export default function App() {
     openAsset: (id: string) => setOverlay({ kind: 'asset', id }),
     openMeeting: (id: string) => setOverlay({ kind: 'meeting', id }),
     editBucket: (id: string) => setSheet({ kind: 'bucketEdit', goalId: id }),
+    editCatBudget: (cat: string, cap: number) => setSheet({ kind: 'catBudget', cat, cap }),
     deleteBucket,
     openSettings: () => setSheet({ kind: 'settings' }),
     signOut,
@@ -181,6 +210,7 @@ export default function App() {
     else if (sheet?.kind === 'bucketMove') sheetEl = <BucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} mode={sheet.mode} onClose={closeSheet} onSave={moveBucket} />
     else if (sheet?.kind === 'bucketEdit') sheetEl = <EditBucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} onClose={closeSheet} onSave={editGoal} onDelete={deleteBucket} />
     else if (sheet?.kind === 'settings') sheetEl = <IncomeSettingsSheet profile={data.profile} income={data.income} onClose={closeSheet} onSave={saveSettings} />
+    else if (sheet?.kind === 'catBudget') sheetEl = <CategoryBudgetSheet cat={sheet.cat} cap={sheet.cap} onClose={closeSheet} onSave={saveCatBudget} />
 
     content = (
       <>
@@ -189,6 +219,9 @@ export default function App() {
           <div className="k-scroll" ref={scrollRef}><div key={tab} className="fade-in">{screen}</div></div>
         </div>
         {overlayEl}
+        {/* Floating quick-add — the daily action, one thumb-tap from any tab.
+            Hidden while a detail overlay or sheet is open so it never overlaps. */}
+        {!overlay && !sheet && tab !== 'keela' && <Fab onClick={() => nav.addTx()} />}
         <TabBar tab={tab} onChange={goTab} />
         {sheetEl}
       </>

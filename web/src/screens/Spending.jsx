@@ -1,9 +1,10 @@
 /* Keela — Spending: money out (variable + recurring), pay-cycle aware, with edit/add */
 import React from 'react'
-import { CatSquare, Badge, Tag, Segmented, Empty, Progress, Sheet } from '../ui/primitives'
+import { CatSquare, Badge, Tag, Segmented, Empty, Progress, Sheet, CountUp, KeelaWhisper } from '../ui/primitives'
 import { fmt, fmtDate, fmtDay, CATEGORIES } from '../lib/format'
-import { CAT, MISC, UPCOMING_COLOR, subLogo } from '../lib/icons'
+import { CAT, MISC, UPCOMING_COLOR, subLogo, getCat } from '../lib/icons'
 import { spendStats, DailySpendChart, CategoryBars } from './spending-extras'
+import { whispers } from '../lib/whispers'
 
 const pad = (n) => String(n).padStart(2, '0')
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -35,7 +36,7 @@ function TxRow({ t, onClick }) {
   )
 }
 
-function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav }) {
+function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav, whisper, budgets, onCatBudget }) {
   const groups = []
   const map = {}
   txns.forEach((t) => {
@@ -55,7 +56,7 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav }) {
       <div className="k-sec" style={{ marginTop: 18 }}>
         <div className="k-sec-head"><span className="k-label">Variable &middot; this cycle</span><span className="k-micro">{cycleLabel}</span></div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
-          <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}>{fmt(curTotal)}<span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
+          <span className="k-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}><CountUp value={curTotal} /><span className="k-sar" style={{ marginLeft: 6 }}>SAR</span></span>
           <span className="k-num" style={{ fontSize: 12, color: 'var(--qahwa-fg-3)' }}>of {fmt(budget)} budget</span>
         </div>
         <Progress pct={pctUsed} color={left < 0 ? 'var(--qahwa-loss)' : 'var(--qahwa-accent)'} />
@@ -66,6 +67,11 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav }) {
           <span className="k-label dim">{pctUsed}% used &middot; {daysLeft} days left</span>
         </div>
       </div>
+
+      {/* KEELA WHISPER */}
+      {whisper && (
+        <div className="k-sec" style={{ marginTop: 16 }}><KeelaWhisper>{whisper}</KeelaWhisper></div>
+      )}
 
       {/* METRICS */}
       <div className="k-sec" style={{ marginTop: 18 }}>
@@ -97,8 +103,8 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav }) {
       {/* CATEGORY BREAKDOWN */}
       {cats.length > 0 && (
         <div className="k-sec" style={{ marginTop: 30 }}>
-          <div className="k-sec-head"><span className="k-label">Where it went</span><span className="k-micro">{cats.length} categories</span></div>
-          <CategoryBars cats={cats} total={curTotal} />
+          <div className="k-sec-head"><span className="k-label">Where it went</span><span className="k-micro">tap to set a budget</span></div>
+          <CategoryBars cats={cats} total={curTotal} budgets={budgets} onEdit={onCatBudget} />
         </div>
       )}
 
@@ -270,6 +276,9 @@ export function Spending({ data, nav, sub, setSub }) {
   const cycleLabel = `${fmtDay(cashflow.cycleStart)} – ${fmtDay(cashflow.cycleEnd)}`
   const daysLeft = Math.max(0, Math.ceil((new Date(cashflow.cycleEnd) - new Date()) / 86400000))
   const stats = spendStats(data)
+  const hints = whispers(data)
+  const spendHint = hints[1] || hints[0] // vary from Home (which shows hints[0])
+  const budgets = data.profile.categoryBudgets || {}
   const onAdd = () => (sub === 'rec' ? nav.addBill() : sub === 'up' ? nav.addUpcoming() : nav.addTx())
   return (
     <div className="k-screen">
@@ -282,7 +291,7 @@ export function Spending({ data, nav, sub, setSub }) {
           value={sub} onChange={setSub} />
       </div>
       <div key={sub}>
-        {sub === 'tx' && <TransactionsView txns={cycleTxns} stats={stats} cycleLabel={cycleLabel} daysLeft={daysLeft} nav={nav} />}
+        {sub === 'tx' && <TransactionsView txns={cycleTxns} stats={stats} cycleLabel={cycleLabel} daysLeft={daysLeft} nav={nav} whisper={spendHint} budgets={budgets} onCatBudget={nav.editCatBudget} />}
         {sub === 'rec' && <RecurringView bills={bills} cf={cashflow} nav={nav} />}
         {sub === 'up' && <UpcomingView upcoming={upcoming} wishlist={wishlist} cf={cashflow} nav={nav} />}
       </div>
@@ -419,6 +428,38 @@ export function UpcomingSheet({ item, onClose, onSave, onDelete }) {
             {item ? 'SAVE CHANGES' : 'ADD UPCOMING'}
           </button>
           {item && <DeleteBtn onClick={() => { onDelete(item.id); close() }} />}
+        </>
+      )}
+    </Sheet>
+  )
+}
+
+/* ---------- per-category budget set/clear ---------- */
+export function CategoryBudgetSheet({ cat, cap, onClose, onSave }) {
+  const [amount, setAmount] = React.useState(cap ? String(cap) : '')
+  const meta = getCat(cat)
+  const num = Math.round((parseFloat(amount) || 0) * 100) / 100
+  return (
+    <Sheet title={`Budget · ${cat}`} onClose={onClose}>
+      {(close) => (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            {meta && <span className="k-catbar-ic" style={{ '--c': meta.color, width: 30, height: 30 }}>{meta.icon}</span>}
+            <span className="k-label dim" style={{ textTransform: 'none', letterSpacing: 0, flex: 1, minWidth: 0 }}>
+              A monthly cap for {cat}. &ldquo;Where it went&rdquo; turns red once you cross it.
+            </span>
+          </div>
+          <AmountField value={amount} onChange={setAmount} />
+          <button className="k-btn accent full" style={{ marginTop: 18, opacity: num > 0 ? 1 : 0.4, pointerEvents: num > 0 ? 'auto' : 'none' }}
+            onClick={() => { if (num > 0) { onSave(cat, num); close() } }}>
+            {cap ? 'UPDATE BUDGET' : 'SET BUDGET'}
+          </button>
+          {cap > 0 && (
+            <button className="k-btn ghost full" style={{ marginTop: 10, color: 'var(--qahwa-loss)', borderColor: 'var(--qahwa-loss)' }}
+              onClick={() => { onSave(cat, 0); close() }}>
+              CLEAR BUDGET
+            </button>
+          )}
         </>
       )}
     </Sheet>

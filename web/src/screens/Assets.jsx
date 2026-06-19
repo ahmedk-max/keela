@@ -1,5 +1,5 @@
 /* Keela — Assets: investments & net worth detail (ported, wired to data) */
-import { Delta, Tag, Badge } from '../ui/primitives'
+import { Delta, Tag, Badge, CountUp } from '../ui/primitives'
 import { getEntry } from '../lib/icons'
 import { TrendChart } from '../ui/echart'
 import { fmt, fmtDate } from '../lib/format'
@@ -42,6 +42,9 @@ export function Assets({ data, nav }) {
   const gain = nw - invested
   const gainPct = invested ? (gain / invested) * 100 : 0
   const sorted = [...assets].sort((x, y) => y.current - x.current)
+  // net-worth trend (assets + savings) from monthly snapshots
+  const nwSeries = (data.snapshots || []).map((s) => s.netWorth)
+  const nwUp = nwSeries.length > 1 && nwSeries[nwSeries.length - 1] >= nwSeries[0]
   return (
     <div className="k-screen">
       <div className="k-phead">
@@ -51,7 +54,7 @@ export function Assets({ data, nav }) {
 
       <div className="k-hero" style={{ paddingTop: 8 }}>
         <span className="k-label" style={{ display: 'block', marginBottom: 10 }}>Portfolio &middot; SAR</span>
-        <div className="k-hero-num" style={{ fontSize: 44 }}>{fmt(nw)}</div>
+        <div className="k-hero-num" style={{ fontSize: 44 }}><CountUp value={nw} /></div>
         <div className="k-hero-delta">
           <span className="k-num k-flat">{fmt(invested)} invested</span>
           <span className="k-flat">/</span>
@@ -59,6 +62,18 @@ export function Assets({ data, nav }) {
           <span className="k-micro">all time</span>
         </div>
       </div>
+
+      {nwSeries.length > 1 && (
+        <div className="k-sec">
+          <div className="k-sec-head"><span className="k-label">Net worth &middot; trend</span><span className="k-micro">{nwSeries.length} mo &middot; incl. savings</span></div>
+          <TrendChart values={nwSeries} height={56} tone={nwUp ? 'gain' : 'loss'} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+            <span className="k-micro k-num">{fmt(nwSeries[0])}</span>
+            <span className="k-micro">last {nwSeries.length} months</span>
+            <span className="k-micro k-num">{fmt(nwSeries[nwSeries.length - 1])}</span>
+          </div>
+        </div>
+      )}
 
       {sorted.length > 0 && (
         <div className="k-sec">

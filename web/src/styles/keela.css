@@ -365,9 +365,21 @@
 .k-chartleg-sw.bar { width: 9px; height: 9px; border-top: 0; background: var(--qahwa-accent); }
 
 .k-catbars { display: flex; flex-direction: column; gap: 12px; }
-.k-catbar { display: flex; align-items: center; gap: 9px; }
+.k-catbar { display: flex; align-items: center; gap: 9px; width: 100%;
+  background: transparent; border: 0; padding: 0; text-align: left; }
+button.k-catbar { cursor: pointer; -webkit-appearance: none; appearance: none;
+  transition: opacity var(--qahwa-motion-fast) var(--qahwa-ease); }
+button.k-catbar:active { opacity: 0.6; }
 .k-catbar-dot { width: 8px; height: 8px; flex: none; }
-.k-catbar-name { width: 82px; flex: none; font: 500 12px/1.2 var(--qahwa-font-ui);
+/* icon variant — small tinted glyph tile; set --c to the category colour */
+.k-catbar-ic { width: 26px; height: 26px; flex: none; display: grid; place-items: center;
+  border: 1px solid color-mix(in srgb, var(--c) 32%, var(--qahwa-border));
+  background: color-mix(in srgb, var(--c) 13%, var(--qahwa-canvas)); color: var(--c); }
+.k-catbar-ic svg { width: 15px; height: 15px; display: block; }
+/* budget cap marker — a hairline on the track at the cap position */
+.k-catbar-cap { position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--qahwa-fg-1); opacity: 0.55; z-index: 1; }
+.k-catbar-name { width: 72px; flex: none; font: 500 12px/1.2 var(--qahwa-font-ui);
   color: var(--qahwa-fg-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .k-catbar-track { flex: 1; height: 6px; background: var(--qahwa-surface-sunk); position: relative; overflow: hidden; }
 .k-catbar-track > i { position: absolute; inset: 0 auto 0 0; display: block;
@@ -496,6 +508,47 @@
     color-mix(in srgb, var(--qahwa-fg-3) 12%, transparent), transparent);
   animation: kshimmer 1.2s infinite; }
 @keyframes kshimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* =========================================================================
+   Motion — fills rise from the left on mount. Functional, brief. The fill's
+   width stays inline; scaleX(0→1) just reveals it without distorting the value.
+   ========================================================================= */
+@keyframes kgrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.k-bar > i,
+.k-catbar-track > i,
+.k-flowbar-seg {
+  transform-origin: left center;
+  animation: kgrow var(--qahwa-motion-slow) var(--qahwa-ease) both;
+}
+
+/* =========================================================================
+   Floating quick-add (FAB) — square terracotta ember, floats above the tab bar
+   ========================================================================= */
+.k-fab {
+  position: fixed; right: var(--k-pad); z-index: 76;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  width: 52px; height: 52px; display: grid; place-items: center;
+  background: var(--qahwa-accent); border: 1px solid var(--qahwa-accent-press);
+  color: var(--qahwa-fg-inv); cursor: pointer; -webkit-appearance: none; appearance: none;
+  box-shadow: 0 4px 14px rgba(28, 22, 17, 0.22);
+  animation: kfab-in var(--qahwa-motion-base) var(--qahwa-ease) both;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
+              transform var(--qahwa-motion-fast) var(--qahwa-ease);
+}
+.k-fab:active { background: var(--qahwa-accent-press); transform: scale(0.94); }
+.k-fab svg { width: 22px; height: 22px; display: block; }
+@keyframes kfab-in { from { opacity: 0; transform: translateY(10px) scale(0.9); } to { opacity: 1; transform: none; } }
+
+/* =========================================================================
+   Keela whisper — a quiet one-line nudge in her voice on the data screens
+   ========================================================================= */
+.k-whisper { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px;
+  border: 1px solid var(--qahwa-border);
+  background: color-mix(in srgb, var(--qahwa-accent) 5%, var(--qahwa-canvas)); }
+.k-whisper .k-ember { margin-top: 4px; }
+.k-whisper-txt { font: 400 12.5px/1.5 var(--qahwa-font-ui); font-style: italic;
+  color: var(--qahwa-fg-2); }
+.k-whisper-txt b { font-weight: 600; font-style: normal; color: var(--qahwa-fg-1); }
 
 /* markdown */
 .k-md { font: 400 13.5px/1.6 var(--qahwa-font-ui); color: var(--qahwa-fg-1); }

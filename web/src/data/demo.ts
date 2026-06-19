@@ -27,6 +27,7 @@ const raw = {
   profile: {
     salary: 25000, payday: 27, split: { save: 70, live: 30 },
     pactStart: '2024-10', pactEnd: '2027-10', currency: 'SAR',
+    categoryBudgets: { Groceries: 1000, Food: 300, Travel: 800 },
   },
   income: [
     { id: 'free', name: 'Freelance', amount: 3000, isRecurring: true },

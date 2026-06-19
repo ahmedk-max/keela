@@ -1,5 +1,6 @@
 /* Keela — Home: daily-driver. Variable headroom hero · runway · goals grid. */
-import { Delta, KeelaNote, Mark, Icons, Sparkline } from '../ui/primitives'
+import { Delta, KeelaNote, Mark, Icons, Sparkline, CountUp, KeelaWhisper } from '../ui/primitives'
+import { whispers } from '../lib/whispers'
 import { GoalScroll, RunwayBar } from './home-extras'
 import { CashflowSankey } from '../ui/echart'
 import { fmt, monthsBetween, NOW_MONTH } from '../lib/format'
@@ -65,6 +66,7 @@ export function Home({ data, nav }) {
   const doneCount = goals.length - visibleGoals.length
 
   const latest = meetings[0]
+  const hint = whispers(data)[0]
 
   return (
     <div className="k-screen">
@@ -92,7 +94,7 @@ export function Home({ data, nav }) {
           <div>
             <span className="k-label dim" style={{ display: 'block', marginBottom: 10 }}>Left to spend</span>
             <div className="k-hero-num" style={{ fontSize: 46, color: variableLeft < 0 ? 'var(--qahwa-loss)' : 'var(--qahwa-fg-1)' }}>
-              {fmt(variableLeft)}<span className="k-sar" style={{ fontSize: 14, marginLeft: 8 }}>SAR</span>
+              <CountUp value={variableLeft} /><span className="k-sar" style={{ fontSize: 14, marginLeft: 8 }}>SAR</span>
             </div>
           </div>
           <span className={'k-tag ' + (variableLeft < 0 ? 'loss' : onPace ? 'gain' : 'loss')} style={{ marginTop: 6 }}>
@@ -118,6 +120,13 @@ export function Home({ data, nav }) {
           <span className="k-micro">of <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.variableBudget)}</span> budget</span>
         </div>
       </div>
+
+      {/* KEELA WHISPER — one derived nudge, her voice, inline */}
+      {hint && (
+        <div className="k-sec" style={{ marginTop: 16 }}>
+          <KeelaWhisper>{hint}</KeelaWhisper>
+        </div>
+      )}
 
       {/* MONTHLY FLOW — where each month's income goes, as a river */}
       <div className="k-sec div">
