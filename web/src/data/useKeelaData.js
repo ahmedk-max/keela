@@ -61,25 +61,69 @@ export function buildData(raw) {
       .map((e) => ({ type: e.type, amount: e.amount, date: (e.date || '').slice(0, 10), note: e.note || '' })),
   }))
 
-  const assets = (raw.assets || []).map((a, i) => ({
-    id: a.id,
-    name: a.name,
-    cat: cap(a.category || 'General'),
-    code: catCode(a.category || 'General'),
-    invested: a.invested || 0,
-    current: a.allocated || 0, // allocated = current balance in the savor model
-    color: a.color || COFFEE[i % COFFEE.length],
-    goal: a.goal ? `Target ${fmt(a.goal)}` : cap(a.category || ''),
-    entries: (entriesByParent['assets/' + a.id] || [])
-      .slice()
-      .sort(byDateDesc)
-      .map((e) => ({
-        type: e.type,
-        amount: e.type === 'update' || e.type === 'initial' ? e.newBalance : e.amountChange,
-        date: (e.date || '').slice(0, 10),
-        note: e.note || '',
-      })),
+  // Holdings (the `assets` collection). Cost-basis only: `allocated` is the SAR
+  // basis currently held = the holding's balance; avg cost is basis ÷ units.
+  // Robust to the pre-overhaul shape (no kind/units/portfolioId, old entry types).
+  const isCashy = (s) => /\b(cash|reserve|savings|wallet|deposit)\b/i.test(s || '')
+  const assets = (raw.assets || []).map((a, i) => {
+    const kind = a.kind || (isCashy(a.category) || isCashy(a.name) ? 'cash' : 'position')
+    const costBasis = a.allocated || 0
+    const units = kind === 'cash' ? null : (a.units != null ? a.units : null)
+    const avgCost = units && units > 0 ? costBasis / units : null
+    return {
+      id: a.id,
+      portfolioId: a.portfolioId || null,
+      name: a.name,
+      kind,
+      cat: cap(a.category || (kind === 'cash' ? 'Cash' : 'Investment')),
+      code: catCode(a.category || (kind === 'cash' ? 'Cash' : 'Investment')),
+      units,
+      avgCost,
+      invested: costBasis, // cost-basis only: invested == balance
+      current: costBasis,
+      costBasis,
+      color: a.color || COFFEE[i % COFFEE.length],
+      note: a.note || '',
+      entries: (entriesByParent['assets/' + a.id] || [])
+        .slice()
+        .sort(byDateDesc)
+        .map((e) => ({
+          type: e.type,
+          units: e.units != null ? e.units : null,
+          price: e.price != null ? e.price : null,
+          // new buy/sell/deposit/withdraw use `amount`; fall back to legacy fields
+          amount: e.amount != null ? e.amount : (e.amountChange != null ? e.amountChange : (e.newBalance || 0)),
+          date: (e.date || '').slice(0, 10),
+          note: e.note || '',
+        })),
+    }
+  })
+
+  // Portfolios group holdings via portfolioId. Anything unmatched falls into a
+  // synthetic default so a fresh / pre-overhaul account still renders.
+  const portfoliosRaw = raw.portfolios || []
+  const portfolios = portfoliosRaw.map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    target: p.target || 0,
+    targetDate: (p.targetDate || '').slice(0, 7) || NOW_MONTH,
+    color: p.color || COFFEE[i % COFFEE.length],
+    note: p.note || '',
+    holdings: assets.filter((h) => h.portfolioId === p.id),
   }))
+  const known = new Set(portfoliosRaw.map((p) => p.id))
+  const orphans = assets.filter((h) => !h.portfolioId || !known.has(h.portfolioId))
+  if (orphans.length) {
+    portfolios.push({
+      id: '_default', name: 'Holdings', target: 0, targetDate: NOW_MONTH,
+      color: 'var(--qahwa-flat)', note: '', holdings: orphans, isDefault: true,
+    })
+  }
+  for (const p of portfolios) {
+    p.value = p.holdings.reduce((s, h) => s + h.current, 0)
+    p.invested = p.value // cost-basis only
+    p.count = p.holdings.length
+  }
 
   const assetsTotal = assets.reduce((s, a) => s + a.current, 0)
   const savingsBalance = goals.reduce((s, g) => s + Math.max(0, (g.allocated || 0) - (g.spent || 0)), 0)
@@ -197,13 +241,13 @@ export function buildData(raw) {
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
 
   return {
-    profile, txns, goals, assets, bills, income, wishlist, upcoming,
+    profile, txns, goals, assets, portfolios, bills, income, wishlist, upcoming,
     snapshots, thisMonth, cashflow, cycleTxns, meetings, memory, netWorth, now: NOW_MONTH,
   }
 }
 
 const EMPTY = {
-  profile: null, transactions: [], bills: [], income: [], goals: [], assets: [],
+  profile: null, transactions: [], bills: [], income: [], goals: [], assets: [], portfolios: [],
   wishlist: [], upcoming: [], snapshots: [], meetings: [], memory: [], entries: [],
 }
 
@@ -228,6 +272,7 @@ export function useKeelaData(enabled = true) {
       subCol('income'),
       subCol('goals'),
       subCol('assets'),
+      subCol('portfolios'),
       subCol('wishlist'),
       subCol('upcomingExpenses', 'upcoming'),
       subCol('snapshots'),

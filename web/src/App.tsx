@@ -12,9 +12,11 @@ import { Lock, Loading } from './screens/Lock'
 import { Home } from './screens/Home'
 import { Spending, TxSheet, BillSheet, UpcomingSheet, WishlistSheet, CategoryBudgetSheet } from './screens/Spending'
 import { Buckets, BucketDetail, BucketSheet, EditBucketSheet } from './screens/Buckets'
-import { Assets, AssetDetail } from './screens/Assets'
+import { Assets, PortfolioDetail, HoldingDetail, PortfolioSheet, HoldingSheet, ActivitySheet } from './screens/Assets'
 import { Keela, MeetingDetail } from './screens/Keela'
 import { IncomeSettingsSheet } from './screens/home-extras'
+
+const TODAY = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
 
 const TABS = [
   { v: 'home', label: 'Home', glyph: 'home' },
@@ -110,6 +112,50 @@ export default function App() {
   }
   const deleteBucket = async (id: string) => { setOverlay(null); await deleteDoc(doc(db, 'goals', id)) }
 
+  // ----- Portfolios & holdings (cost-basis model; see DATA_MODEL.md) -----
+  const savePortfolio = async (id: string | undefined, f: any) => {
+    const payload = { name: f.name, target: f.target || 0, targetDate: f.targetDate || null, color: f.color, note: f.note || null }
+    if (id) await updateDoc(doc(db, 'portfolios', String(id)), payload)
+    else await addDoc(collection(db, 'portfolios'), { ...payload, icon: null, createdAt: serverTimestamp() })
+  }
+  const deletePortfolio = async (id: string) => { setOverlay(null); await deleteDoc(doc(db, 'portfolios', String(id))) }
+
+  const saveHolding = async (id: string | undefined, f: any) => {
+    const base = { name: f.name, portfolioId: f.portfolioId || null, kind: f.kind, category: f.category, color: f.color, note: f.note || null }
+    if (id) { await updateDoc(doc(db, 'assets', String(id)), base); return }
+    const o = f.opening || {}
+    const units = f.kind === 'position' ? (o.units || 0) : null
+    const allocated = o.amount || 0
+    const ref = await addDoc(collection(db, 'assets'), { ...base, units, allocated, icon: null, createdAt: serverTimestamp() })
+    if (allocated > 0) {
+      const entry = f.kind === 'position'
+        ? { type: 'buy', units: o.units || 0, price: o.price || 0, amount: allocated, note: 'opening', date: TODAY }
+        : { type: 'deposit', amount: allocated, note: 'opening', date: TODAY }
+      await addDoc(collection(db, `assets/${ref.id}/entries`), entry)
+    }
+  }
+  const deleteHolding = async (id: string) => { setOverlay(null); await deleteDoc(doc(db, 'assets', String(id))) }
+
+  // Activity drives the holding's cost basis. Buy/deposit raise it; withdraw lowers
+  // it; sell removes cost at the running average (so avg cost is unchanged by sells).
+  const logActivity = async (holdingId: string, entry: any) => {
+    const h = data.assets.find((x: any) => x.id === holdingId)
+    const ref = doc(db, 'assets', String(holdingId))
+    let costRemoved = null
+    if (entry.type === 'sell') {
+      const avg = h && h.units > 0 ? h.costBasis / h.units : 0
+      costRemoved = Math.round(avg * (entry.units || 0))
+    }
+    await addDoc(collection(db, `assets/${holdingId}/entries`), {
+      type: entry.type, units: entry.units ?? null, price: entry.price ?? null,
+      amount: entry.amount || 0, costRemoved, note: entry.note || null, date: entry.date,
+    })
+    if (entry.type === 'buy') await updateDoc(ref, { allocated: increment(entry.amount), units: increment(entry.units || 0) })
+    else if (entry.type === 'deposit') await updateDoc(ref, { allocated: increment(entry.amount) })
+    else if (entry.type === 'withdraw') await updateDoc(ref, { allocated: increment(-entry.amount) })
+    else if (entry.type === 'sell') await updateDoc(ref, { allocated: increment(-(costRemoved || 0)), units: increment(-(entry.units || 0)) })
+  }
+
   const saveBill = async (bill: any, f: any) => {
     const data = { name: f.name, amount: f.amount, category: f.category, type: f.type, isSubscription: !!f.sub, billingDay: f.billingDay ?? null }
     if (bill?.id) await updateDoc(doc(db, 'bills', String(bill.id)), data)
@@ -161,10 +207,18 @@ export default function App() {
     addWishlist: () => setSheet({ kind: 'wish', item: null }),
     editWishlist: (w: any) => setSheet({ kind: 'wish', item: w }),
     openBucket: (id: string) => setOverlay({ kind: 'bucket', id }),
-    openAsset: (id: string) => setOverlay({ kind: 'asset', id }),
+    openPortfolio: (id: string) => setOverlay({ kind: 'portfolio', id }),
+    openHolding: (id: string, portfolioId: string) => setOverlay({ kind: 'holding', id, portfolioId }),
     openMeeting: (id: string) => setOverlay({ kind: 'meeting', id }),
     editBucket: (id: string) => setSheet({ kind: 'bucketEdit', goalId: id }),
     editCatBudget: (cat: string, cap: number) => setSheet({ kind: 'catBudget', cat, cap }),
+    addPortfolio: () => setSheet({ kind: 'pfEdit', portfolio: null }),
+    editPortfolio: (id: string) => setSheet({ kind: 'pfEdit', portfolio: data.portfolios.find((p: any) => p.id === id) }),
+    addHolding: (portfolioId: string | null) => setSheet({ kind: 'holdEdit', holding: null, portfolioId }),
+    editHolding: (h: any) => setSheet({ kind: 'holdEdit', holding: h, portfolioId: h.portfolioId }),
+    actHolding: (h: any, mode: string) => setSheet({ kind: 'holdAct', holding: h, mode }),
+    deletePortfolio,
+    deleteHolding,
     deleteBucket,
     // delete handlers for swipe-to-delete on list rows
     deleteTx: deleteTxn,
@@ -198,9 +252,26 @@ export default function App() {
     if (overlay?.kind === 'bucket') {
       const g = data.goals.find((x: any) => x.id === overlay.id)
       if (g) overlayEl = <BucketDetail g={g} onClose={() => setOverlay(null)} onMove={(id: string, mode: string) => setSheet({ kind: 'bucketMove', goalId: id, mode })} onEdit={(id: string) => setSheet({ kind: 'bucketEdit', goalId: id })} />
-    } else if (overlay?.kind === 'asset') {
-      const a = data.assets.find((x: any) => x.id === overlay.id)
-      if (a) overlayEl = <AssetDetail a={a} onClose={() => setOverlay(null)} />
+    } else if (overlay?.kind === 'portfolio') {
+      const p = data.portfolios.find((x: any) => x.id === overlay.id)
+      if (p) overlayEl = (
+        <PortfolioDetail p={p} onClose={() => setOverlay(null)}
+          onEdit={(id: string) => nav.editPortfolio(id)}
+          onAddHolding={() => nav.addHolding(p.isDefault ? null : p.id)}
+          onOpenHolding={(hid: string) => nav.openHolding(hid, p.id)}
+          onEditHolding={(h: any) => nav.editHolding(h)}
+          onDeleteHolding={deleteHolding} />
+      )
+    } else if (overlay?.kind === 'holding') {
+      const h = data.assets.find((x: any) => x.id === overlay.id)
+      const p = data.portfolios.find((x: any) => x.id === overlay.portfolioId)
+        || data.portfolios.find((pp: any) => pp.holdings.some((hh: any) => hh.id === overlay.id))
+      if (h) overlayEl = (
+        <HoldingDetail h={h} portfolio={p || { value: h.current, name: 'Portfolio' }}
+          onClose={() => setOverlay(p ? { kind: 'portfolio', id: p.id } : null)}
+          onEdit={() => nav.editHolding(h)}
+          onAct={(mode: string) => nav.actHolding(h, mode)} />
+      )
     } else if (overlay?.kind === 'meeting') {
       const m = data.meetings.find((x: any) => x.id === overlay.id)
       if (m) overlayEl = <MeetingDetail m={m} onClose={() => setOverlay(null)} />
@@ -214,6 +285,9 @@ export default function App() {
     else if (sheet?.kind === 'wish') sheetEl = <WishlistSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveWish(sheet.item, f)} onDelete={deleteWish} />
     else if (sheet?.kind === 'bucketMove') sheetEl = <BucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} mode={sheet.mode} onClose={closeSheet} onSave={moveBucket} />
     else if (sheet?.kind === 'bucketEdit') sheetEl = <EditBucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} onClose={closeSheet} onSave={editGoal} onDelete={deleteBucket} />
+    else if (sheet?.kind === 'pfEdit') sheetEl = <PortfolioSheet portfolio={sheet.portfolio} onClose={closeSheet} onSave={savePortfolio} onDelete={deletePortfolio} />
+    else if (sheet?.kind === 'holdEdit') sheetEl = <HoldingSheet holding={sheet.holding} portfolioId={sheet.portfolioId} portfolios={data.portfolios} onClose={closeSheet} onSave={saveHolding} onDelete={deleteHolding} />
+    else if (sheet?.kind === 'holdAct') sheetEl = <ActivitySheet holding={sheet.holding} mode={sheet.mode} onClose={closeSheet} onSave={logActivity} />
     else if (sheet?.kind === 'settings') sheetEl = <IncomeSettingsSheet profile={data.profile} income={data.income} onClose={closeSheet} onSave={saveSettings} />
     else if (sheet?.kind === 'catBudget') sheetEl = <CategoryBudgetSheet cat={sheet.cat} cap={sheet.cap} onClose={closeSheet} onSave={saveCatBudget} />
 

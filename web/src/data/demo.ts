@@ -79,11 +79,17 @@ const raw = {
     { id: 'g4', name: 'MacBook Pro', target: 9000, allocated: 9000, spent: 0, status: 'completed', color: 'var(--qahwa-latte)', targetDate: '2026-03', note: '' },
     { id: 'g5', name: 'Wedding', target: 120000, allocated: 12000, spent: 0, status: 'paused', color: 'var(--qahwa-flat)', targetDate: '2027-10', note: 'On hold until the car is done.' },
   ],
+  portfolios: [
+    { id: 'pf1', name: 'Long-term', target: 200000, targetDate: '2027-10', color: 'var(--qahwa-brewed)', note: 'Buy-and-hold core. Index funds and gold — the slow, boring compounding.' },
+    { id: 'pf2', name: 'Speculative', target: 20000, targetDate: '2027-01', color: 'var(--qahwa-espresso)', note: 'Play money. Capped — never feed it more than it earns back.' },
+    { id: 'pf3', name: 'Cash', target: 50000, targetDate: '2026-12', color: 'var(--qahwa-flat)', note: 'Dry powder for opportunities.' },
+  ],
   assets: [
-    { id: 'a1', name: 'US Stocks (VOO)', category: 'investment', invested: 30000, allocated: 41800, color: 'var(--qahwa-brewed)', goal: 60000 },
-    { id: 'a2', name: 'Gold', category: 'commodity', invested: 12000, allocated: 14200, color: 'var(--qahwa-latte)' },
-    { id: 'a3', name: 'Crypto', category: 'crypto', invested: 8000, allocated: 6500, color: 'var(--qahwa-espresso)' },
-    { id: 'a4', name: 'Cash Reserve', category: 'cash', invested: 20000, allocated: 20000, color: 'var(--qahwa-flat)' },
+    // cost basis = allocated; avg cost = allocated / units
+    { id: 'a1', name: 'US Stocks (VOO)', portfolioId: 'pf1', kind: 'position', category: 'stocks', units: 80, allocated: 30000, color: 'var(--qahwa-brewed)' },
+    { id: 'a2', name: 'Gold', portfolioId: 'pf1', kind: 'position', category: 'commodity', units: 60, allocated: 12000, color: 'var(--qahwa-latte)' },
+    { id: 'a3', name: 'Bitcoin', portfolioId: 'pf2', kind: 'position', category: 'crypto', units: 0.04, allocated: 8000, color: 'var(--qahwa-espresso)' },
+    { id: 'a4', name: 'Cash Reserve', portfolioId: 'pf3', kind: 'cash', category: 'cash', units: null, allocated: 20000, color: 'var(--qahwa-flat)' },
   ],
   wishlist: [
     { id: 'w1', name: 'Sony WH-1000XM5', amount: 1499 },
@@ -132,9 +138,13 @@ const raw = {
     { path: 'goals/g3/entries/e4', type: 'spend', amount: 5200, date: dayISO(20), note: 'flights + hotel' },
     { path: 'goals/g3/entries/e5', type: 'spend', amount: 3000, date: dayISO(6), note: 'JR pass + spending' },
     { path: 'goals/g2/entries/e6', type: 'deposit', amount: 4000, date: dayISO(8), note: '' },
-    { path: 'assets/a1/entries/e7', type: 'initial', newBalance: 30000, date: dayISO(200), note: 'opening' },
-    { path: 'assets/a1/entries/e8', type: 'update', newBalance: 41800, date: dayISO(3), note: 'quarterly mark' },
-    { path: 'assets/a3/entries/e9', type: 'update', newBalance: 6500, date: dayISO(3), note: 'dip' },
+    // holdings — buy/sell (positions) and deposit/withdraw (cash)
+    { path: 'assets/a1/entries/e7', type: 'buy', units: 50, price: 375, amount: 18750, date: dayISO(200), note: 'opening lot' },
+    { path: 'assets/a1/entries/e8', type: 'buy', units: 30, price: 375, amount: 11250, date: dayISO(40), note: 'monthly add' },
+    { path: 'assets/a2/entries/e9', type: 'buy', units: 60, price: 200, amount: 12000, date: dayISO(150), note: '' },
+    { path: 'assets/a3/entries/e10', type: 'buy', units: 0.05, price: 200000, amount: 10000, date: dayISO(120), note: '' },
+    { path: 'assets/a3/entries/e11', type: 'sell', units: 0.01, price: 210000, amount: 2100, costRemoved: 2000, date: dayISO(20), note: 'took some off' },
+    { path: 'assets/a4/entries/e12', type: 'deposit', amount: 20000, date: dayISO(60), note: 'set aside' },
   ],
 }
 

@@ -44,13 +44,33 @@ entry: { type: "deposit"|"withdrawal", amount, note, date }
 ```
 _(from `savings_goals` + `goal_logs`)_
 
-## `assets/{id}` + subcollection `assets/{id}/entries/{id}`
+## `portfolios/{id}` — investment portfolios (the grouping above holdings)
 ```
-asset: { name, category, goal, allocated, invested, icon, createdAt }
-entry: { type: "initial"|"deposit"|"withdrawal"|"update"|"rebalance",
-         amountChange, newBalance, note, date }
+{ name, target, targetDate: "YYYY-MM", color, icon, note, createdAt }
 ```
-_(from `assets` + `asset_logs`)_
+A portfolio has a savings-style **goal** (`target` + `targetDate`); its balance is the sum of the
+holdings (`assets`) that point to it via `portfolioId`. New in the overhaul.
+
+## `assets/{id}` + subcollection `assets/{id}/entries/{id}` — holdings inside a portfolio
+```
+asset: { name, portfolioId, kind: "cash"|"position", category,
+         units: number|null,   // null for cash
+         allocated,            // SAR cost basis held = the holding's balance (units × avg cost)
+         color, icon, note, createdAt }
+entry: { type: "buy"|"sell"|"deposit"|"withdraw",
+         units, price,         // per-unit, for buy/sell (positions)
+         amount,               // SAR moved (buy: units×price; sell: proceeds; cash: the amount)
+         costRemoved,          // sell only: cost basis removed = units × avg cost at sale
+         note, date }
+```
+**Cost-basis only — no live prices, no mark-to-market, no P/L** (deliberate, to stay simple). A
+holding's `allocated` is its net invested: **buy**/`deposit` raise it, **sell**/`withdraw` lower it.
+A sell removes cost at the running average (`avg = allocated ÷ units`), so **avg cost is unchanged
+by sells**; proceeds are recorded for reference but never turned into a gain/loss figure. `avgCost`
+and per-portfolio roll-ups are computed in the client. Holdings with no/!matching `portfolioId`
+fall into a synthetic default portfolio so nothing is orphaned. Everything is SAR.
+_(from `assets` + `asset_logs`; `kind`/`units`/`portfolioId` are new — the old `goal`/`invested`/
+`update`/`initial` fields are superseded by the portfolio `target` and the buy/sell log.)_
 
 ## `meetings/{id}` — Keela's session notes  (id = `YYYY-MM-DD`)
 ```

@@ -780,3 +780,27 @@ button.k-catbar:active { opacity: 0.6; }
 .k-read-sig { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--qahwa-border);
   display: flex; align-items: center; gap: 9px; }
 .k-read-sig-word { font: 400 14px/1 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-2); }
+
+/* =========================================================================
+   ASSETS — portfolios & holdings (the overhaul)
+   ========================================================================= */
+/* portfolio cards — one per row, value + goal progress */
+.k-pflist { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.k-pfcard { width: 100%; text-align: left; background: var(--qahwa-canvas);
+  border: 1px solid var(--qahwa-border); padding: 14px 14px 13px; cursor: pointer;
+  -webkit-appearance: none; appearance: none; display: flex; flex-direction: column; gap: 10px;
+  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
+.k-pfcard:active { background: var(--qahwa-surface); }
+.k-pfcard-top { display: flex; align-items: center; gap: 9px; }
+.k-pfcard-name { font: 600 14px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-pfcard-count { font: 500 10px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
+  color: var(--qahwa-fg-3); flex: none; }
+.k-pfcard-val { font: 600 22px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
+  color: var(--qahwa-fg-1); letter-spacing: -0.01em; }
+.k-pfcard-sub { font: 500 11px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); margin-left: 7px; }
+.k-pfcard-meta { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* holding row — units / avg cost sit in the subtitle */
+.k-hold-units { font: 500 10px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
+  letter-spacing: 0.02em; }
