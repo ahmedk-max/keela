@@ -78,6 +78,73 @@ export function Fab({ onClick, label = 'Add transaction' }) {
   )
 }
 
+/* ---------- Swipe row — drag left to reveal action buttons (iOS idiom) --------
+   Pointer-based so it works with touch and mouse. `touch-action: pan-y` on the
+   foreground lets vertical scrolling pass through; we only engage once a gesture
+   is decided horizontal. A real drag suppresses the trailing click; an open row
+   closes on tap before any row action fires. */
+export function SwipeRow({ actions = [], children }) {
+  const [dx, setDx] = useState(0)
+  const [anim, setAnim] = useState(false)
+  const openRef = useRef(false)
+  const curRef = useRef(0)
+  const start = useRef(null)
+  const axis = useRef(null)
+  const moved = useRef(false)
+  const W = actions.length * 72
+
+  const set = (v) => { curRef.current = v; setDx(v) }
+  const settle = (toOpen) => { setAnim(true); openRef.current = toOpen; set(toOpen ? -W : 0) }
+
+  const onDown = (e) => {
+    start.current = { x: e.clientX, y: e.clientY, base: curRef.current }
+    axis.current = null; moved.current = false; setAnim(false)
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* not all browsers */ }
+  }
+  const onMove = (e) => {
+    if (!start.current) return
+    const ddx = e.clientX - start.current.x
+    const ddy = e.clientY - start.current.y
+    if (axis.current === null) {
+      if (Math.abs(ddx) < 6 && Math.abs(ddy) < 6) return
+      axis.current = Math.abs(ddx) > Math.abs(ddy) ? 'x' : 'y'
+    }
+    if (axis.current !== 'x') return
+    moved.current = true
+    set(Math.max(-W - 20, Math.min(0, start.current.base + ddx)))
+  }
+  const onUp = () => {
+    if (!start.current) return
+    const wasX = axis.current === 'x'
+    start.current = null; axis.current = null
+    if (wasX) settle(curRef.current < -W / 2)
+  }
+  const onClickCapture = (e) => {
+    if (openRef.current || moved.current) {
+      e.preventDefault(); e.stopPropagation(); moved.current = false; settle(false)
+    }
+  }
+
+  return (
+    <div className="k-swipe">
+      <div className="k-swipe-actions" style={{ width: W }}>
+        {actions.map((a, i) => (
+          <button key={i} className={'k-swipe-act ' + (a.kind || '')} aria-label={a.label}
+            onClick={() => { settle(false); a.onClick && a.onClick() }}>
+            {a.icon}<span>{a.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="k-swipe-fg"
+        style={{ transform: `translateX(${dx}px)`, transition: anim ? 'transform 200ms var(--qahwa-ease)' : 'none' }}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        onClickCapture={onClickCapture}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Keela whisper — a quiet, derived one-liner in her voice ---------- */
 export function KeelaWhisper({ children }) {
   if (!children) return null

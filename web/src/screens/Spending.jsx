@@ -1,7 +1,7 @@
 /* Keela — Spending: money out (variable + recurring), pay-cycle aware, with edit/add */
 import React from 'react'
-import { CatSquare, Badge, Tag, Segmented, Empty, Progress, Sheet, CountUp, KeelaWhisper } from '../ui/primitives'
-import { fmt, fmtDate, fmtDay, CATEGORIES } from '../lib/format'
+import { CatSquare, Badge, Tag, Segmented, Empty, Progress, Sheet, CountUp, KeelaWhisper, SwipeRow, Icons } from '../ui/primitives'
+import { fmt, fmtDate, fmtDay, CATEGORIES, MONTH_ABBR } from '../lib/format'
 import { CAT, MISC, UPCOMING_COLOR, subLogo, getCat } from '../lib/icons'
 import { spendStats, DailySpendChart, CategoryBars } from './spending-extras'
 import { whispers } from '../lib/whispers'
@@ -17,22 +17,27 @@ function dayLabel(d) {
   return fmtDate(d)
 }
 
-function TxRow({ t, onClick }) {
+function TxRow({ t, onClick, onDelete }) {
   return (
-    <button className="k-row btn" onClick={onClick}>
-      <CatSquare cat={t.cat} code={t.code} keela={t.source === 'keela'} />
-      <div className="k-row-main">
-        <span className="k-row-name">
-          {t.name}
-          {t.source === 'keela' && <span className="k-tag em" style={{ padding: '2px 4px', fontSize: 8 }}>K</span>}
-        </span>
-        <span className="k-row-sub">{t.cat}{t.note ? ' · ' + t.note : ''}</span>
-      </div>
-      <div className="k-row-r">
-        <span className="k-row-amt">&minus;{fmt(t.amount, t.amount % 1 ? 2 : 0)}</span>
-        <span className="k-micro k-num">{t.time}</span>
-      </div>
-    </button>
+    <SwipeRow actions={[
+      { label: 'Edit', icon: Icons.edit, onClick },
+      { label: 'Delete', kind: 'del', icon: Icons.trash, onClick: onDelete },
+    ]}>
+      <button className="k-row btn" onClick={onClick}>
+        <CatSquare cat={t.cat} code={t.code} keela={t.source === 'keela'} />
+        <div className="k-row-main">
+          <span className="k-row-name">
+            {t.name}
+            {t.source === 'keela' && <span className="k-tag em" style={{ padding: '2px 4px', fontSize: 8 }}>K</span>}
+          </span>
+          <span className="k-row-sub">{t.cat}{t.note ? ' · ' + t.note : ''}</span>
+        </div>
+        <div className="k-row-r">
+          <span className="k-row-amt">&minus;{fmt(t.amount, t.amount % 1 ? 2 : 0)}</span>
+          <span className="k-micro k-num">{t.time}</span>
+        </div>
+      </button>
+    </SwipeRow>
   )
 }
 
@@ -118,9 +123,62 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, nav, whisper, bud
             <span className="k-label">{dayLabel(g.date)}</span>
             <span className="k-day-tot">&minus;{fmt(g.total)}</span>
           </div>
-          {g.items.map((t) => <TxRow key={t.id} t={t} onClick={() => nav.editTx(t)} />)}
+          {g.items.map((t) => <TxRow key={t.id} t={t} onClick={() => nav.editTx(t)} onDelete={() => nav.deleteTx(t.id)} />)}
         </div>
       )) : <Empty>Nothing spent yet this cycle.</Empty>}
+    </div>
+  )
+}
+
+/* ---------- Subscriptions & bills renewal calendar ----------
+   Computes each monthly item's next renewal from its billing day, plots them on a
+   30-day timeline, then lists them chronologically with a calendar date tile. */
+function RenewalCalendar({ bills, nav }) {
+  const DAY = 86400000
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const nextRenewal = (day) => {
+    const mk = (yy, mm) => { const last = new Date(yy, mm + 1, 0).getDate(); return new Date(yy, mm, Math.min(day, last)) }
+    let n = mk(today.getFullYear(), today.getMonth())
+    if (n < today) n = mk(today.getFullYear(), today.getMonth() + 1)
+    return n
+  }
+  const items = bills
+    .filter((b) => b.type === 'monthly' && b.day)
+    .map((b) => { const date = nextRenewal(b.day); return { ...b, date, days: Math.round((date - today) / DAY) } })
+    .filter((i) => i.days <= 31)
+    .sort((a, b) => a.days - b.days)
+  if (!items.length) return null
+  const total = items.reduce((s, i) => s + i.amount, 0)
+  const rel = (n) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n}d`)
+  return (
+    <div className="k-sec" style={{ marginTop: 30 }}>
+      <div className="k-sec-head">
+        <span className="k-label">Renewals &middot; next 30 days</span>
+        <span className="k-num" style={{ fontSize: 12, fontWeight: 600 }}>{fmt(total)}<span className="k-sar" style={{ marginLeft: 4 }}>SAR</span></span>
+      </div>
+      <div className="k-renew-track">
+        {items.map((i) => (
+          <span key={i.id} className="k-renew-pip" title={`${i.name} · ${rel(i.days)}`}
+            style={{ left: Math.min(100, (i.days / 30) * 100) + '%', background: i.sub ? 'var(--qahwa-accent)' : 'var(--qahwa-loss)' }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, marginBottom: 4 }}>
+        <span className="k-micro">today</span>
+        <span className="k-micro">in 30 days</span>
+      </div>
+      {items.map((i) => (
+        <button className="k-row btn" key={i.id} onClick={() => nav.editBill(i)}>
+          <span className="k-caltile"><b>{i.date.getDate()}</b><span>{MONTH_ABBR[i.date.getMonth()]}</span></span>
+          <div className="k-row-main">
+            <span className="k-row-name">{i.name}{i.sub && <Tag kind="mute">Sub</Tag>}</span>
+            <span className="k-row-sub">{rel(i.days)} &middot; {i.cat}</span>
+          </div>
+          <div className="k-row-r">
+            <span className="k-row-amt">{fmt(i.amount, i.amount % 1 ? 2 : 0)}</span>
+            <span className="k-micro">/mo</span>
+          </div>
+        </button>
+      ))}
     </div>
   )
 }
@@ -139,19 +197,24 @@ function RecurringView({ bills, cf, nav }) {
   const Row = ({ b }) => {
     const logo = b.sub ? subLogo(b.name) : null
     return (
-    <button className="k-row btn" onClick={() => nav.editBill(b)}>
-      {b.sub
-        ? <Badge icon={logo ? logo.icon : CAT.Subscriptions.icon} color={logo ? logo.color : CAT.Subscriptions.color} />
-        : <CatSquare cat={b.cat} code={b.code} />}
-      <div className="k-row-main">
-        <span className="k-row-name">{b.name}{b.sub && <Tag kind="mute">Sub</Tag>}</span>
-        <span className="k-row-sub">{b.cat} &middot; {b.type === 'yearly' ? 'Yearly' : b.day ? 'Due ' + b.day : 'Monthly'}</span>
-      </div>
-      <div className="k-row-r">
-        <span className="k-row-amt">{fmt(b.amount, b.amount % 1 ? 2 : 0)}</span>
-        <span className="k-micro">{b.type === 'yearly' ? '/yr' : '/mo'}</span>
-      </div>
-    </button>
+    <SwipeRow actions={[
+      { label: 'Edit', icon: Icons.edit, onClick: () => nav.editBill(b) },
+      { label: 'Delete', kind: 'del', icon: Icons.trash, onClick: () => nav.deleteBill(b.id) },
+    ]}>
+      <button className="k-row btn" onClick={() => nav.editBill(b)}>
+        {b.sub
+          ? <Badge icon={logo ? logo.icon : CAT.Subscriptions.icon} color={logo ? logo.color : CAT.Subscriptions.color} />
+          : <CatSquare cat={b.cat} code={b.code} />}
+        <div className="k-row-main">
+          <span className="k-row-name">{b.name}{b.sub && <Tag kind="mute">Sub</Tag>}</span>
+          <span className="k-row-sub">{b.cat} &middot; {b.type === 'yearly' ? 'Yearly' : b.day ? 'Due ' + b.day : 'Monthly'}</span>
+        </div>
+        <div className="k-row-r">
+          <span className="k-row-amt">{fmt(b.amount, b.amount % 1 ? 2 : 0)}</span>
+          <span className="k-micro">{b.type === 'yearly' ? '/yr' : '/mo'}</span>
+        </div>
+      </button>
+    </SwipeRow>
     )
   }
   const leg = (c, label, val) => (
@@ -192,6 +255,9 @@ function RecurringView({ bills, cf, nav }) {
           <div className="k-fig"><span className="k-fig-val">{incomePct != null ? incomePct + '%' : '—'}</span><span className="k-label dim">Of income</span></div>
         </div>
       </div>
+
+      {/* RENEWAL CALENDAR — when each subscription / bill comes due */}
+      <RenewalCalendar bills={bills} nav={nav} />
 
       <div className="k-sec div" style={{ paddingBottom: 0 }}>
         <div className="k-sec-head" style={{ marginBottom: 0 }}><span className="k-label">All recurring</span><span className="k-micro">{bills.length}</span></div>
@@ -241,14 +307,19 @@ function UpcomingView({ upcoming, wishlist, cf, nav }) {
         </>
       )}
       {upcoming.map((u) => (
-        <button className="k-row btn" key={u.id} onClick={() => nav.editUpcoming(u)}>
-          <Badge icon={MISC.calendar} color={UPCOMING_COLOR} />
-          <div className="k-row-main">
-            <span className="k-row-name">{u.name}</span>
-            <span className="k-row-sub">{fmtDate(u.date)} &middot; {rel(u.date)}</span>
-          </div>
-          <div className="k-row-r"><span className="k-row-amt">{fmt(u.amount)}</span></div>
-        </button>
+        <SwipeRow key={u.id} actions={[
+          { label: 'Edit', icon: Icons.edit, onClick: () => nav.editUpcoming(u) },
+          { label: 'Delete', kind: 'del', icon: Icons.trash, onClick: () => nav.deleteUpcoming(u.id) },
+        ]}>
+          <button className="k-row btn" onClick={() => nav.editUpcoming(u)}>
+            <Badge icon={MISC.calendar} color={UPCOMING_COLOR} />
+            <div className="k-row-main">
+              <span className="k-row-name">{u.name}</span>
+              <span className="k-row-sub">{fmtDate(u.date)} &middot; {rel(u.date)}</span>
+            </div>
+            <div className="k-row-r"><span className="k-row-amt">{fmt(u.amount)}</span></div>
+          </button>
+        </SwipeRow>
       ))}
       {upcoming.length === 0 && (
         <div className="k-sec" style={{ marginTop: 18 }}><Empty>Nothing scheduled. Tap ADD to plan an upcoming expense.</Empty></div>
@@ -258,11 +329,16 @@ function UpcomingView({ upcoming, wishlist, cf, nav }) {
         <button className="k-addlink" onClick={() => nav.addWishlist()}>+ Add</button>
       </div>
       {wishlist.map((w) => (
-        <button className="k-row btn" key={w.id} onClick={() => nav.editWishlist(w)}>
-          <Badge icon={MISC.star} dashed />
-          <div className="k-row-main"><span className="k-row-name" style={{ color: 'var(--qahwa-fg-2)' }}>{w.name}</span></div>
-          <div className="k-row-r"><span className="k-row-amt" style={{ color: 'var(--qahwa-fg-3)' }}>{fmt(w.amount)}</span></div>
-        </button>
+        <SwipeRow key={w.id} actions={[
+          { label: 'Edit', icon: Icons.edit, onClick: () => nav.editWishlist(w) },
+          { label: 'Delete', kind: 'del', icon: Icons.trash, onClick: () => nav.deleteWish(w.id) },
+        ]}>
+          <button className="k-row btn" onClick={() => nav.editWishlist(w)}>
+            <Badge icon={MISC.star} dashed />
+            <div className="k-row-main"><span className="k-row-name" style={{ color: 'var(--qahwa-fg-2)' }}>{w.name}</span></div>
+            <div className="k-row-r"><span className="k-row-amt" style={{ color: 'var(--qahwa-fg-3)' }}>{fmt(w.amount)}</span></div>
+          </button>
+        </SwipeRow>
       ))}
       {wishlist.length === 0 && (
         <div className="k-row"><span className="k-micro" style={{ fontStyle: 'italic', color: 'var(--qahwa-fg-3)' }}>Nothing saved yet &mdash; tap &ldquo;+ Add&rdquo;.</span></div>

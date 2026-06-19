@@ -166,6 +166,11 @@ export default function App() {
     editBucket: (id: string) => setSheet({ kind: 'bucketEdit', goalId: id }),
     editCatBudget: (cat: string, cap: number) => setSheet({ kind: 'catBudget', cat, cap }),
     deleteBucket,
+    // delete handlers for swipe-to-delete on list rows
+    deleteTx: deleteTxn,
+    deleteBill,
+    deleteUpcoming,
+    deleteWish,
     openSettings: () => setSheet({ kind: 'settings' }),
     signOut,
     theme,

@@ -550,6 +550,37 @@ button.k-catbar:active { opacity: 0.6; }
   color: var(--qahwa-fg-2); }
 .k-whisper-txt b { font-weight: 600; font-style: normal; color: var(--qahwa-fg-1); }
 
+/* =========================================================================
+   Swipe row — drag left to reveal Edit / Delete (iOS idiom). The foreground
+   slides over fixed action buttons; vertical scroll still passes through.
+   ========================================================================= */
+.k-swipe { position: relative; overflow: hidden; }
+.k-swipe-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; z-index: 0; }
+.k-swipe-act { width: 72px; border: 0; cursor: pointer; -webkit-appearance: none; appearance: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--qahwa-surface); color: var(--qahwa-fg-1); }
+.k-swipe-act svg { width: 16px; height: 16px; display: block; }
+.k-swipe-act.del { background: var(--qahwa-loss); color: var(--qahwa-fg-inv); }
+.k-swipe-act:active { filter: brightness(0.94); }
+.k-swipe-fg { position: relative; z-index: 1; background: var(--qahwa-canvas);
+  touch-action: pan-y; }
+
+/* =========================================================================
+   Renewal calendar — a 30-day timeline of upcoming bill/subscription renewals
+   ========================================================================= */
+.k-renew-track { position: relative; height: 8px; margin-top: 4px;
+  background: var(--qahwa-surface-sunk); border: 1px solid var(--qahwa-border); }
+.k-renew-pip { position: absolute; top: -2px; width: 3px; height: 12px;
+  transform: translateX(-1px); }
+.k-caltile { width: 38px; height: 38px; flex: none; border: 1px solid var(--qahwa-border-strong);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--qahwa-canvas); }
+[data-density="compact"] .k-caltile { width: 34px; height: 34px; }
+.k-caltile b { font: 600 14px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1); }
+.k-caltile span { font: 600 8px/1 var(--qahwa-font-ui); letter-spacing: 0.08em;
+  color: var(--qahwa-fg-3); margin-top: 2px; }
+
 /* markdown */
 .k-md { font: 400 13.5px/1.6 var(--qahwa-font-ui); color: var(--qahwa-fg-1); }
 .k-md h3 { font: 600 11px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
