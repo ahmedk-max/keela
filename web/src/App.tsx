@@ -316,7 +316,6 @@ export default function App() {
       <>
         <div className="k-app">
           <div className="k-scroll" ref={scrollRef}><div key={tab} className="fade-in">{screen}</div></div>
-          <div className="k-topfade" aria-hidden="true" />
         </div>
         {overlayEl}
         {/* Floating quick-add — the daily action, one thumb-tap from any tab.

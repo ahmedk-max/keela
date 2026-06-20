@@ -22,11 +22,6 @@
 :root {
   --k-bg: #ECE5D6; --k-card: #FDFBF6; --k-line: #E0D8C6; --k-accent: #C4623A;
   --k-pad: 20px;
-  /* Top safe inset for the status bar — trust the device's REAL inset via env(),
-     with only a small 12px fallback for non-notch devices / the browser preview
-     (which report 0). Notch/Island phones get their true inset, so the header
-     clears the status bar without the fixed 59px floor's extra dead space. */
-  --k-safetop: max(env(safe-area-inset-top, 0px), 12px);
 }
 [data-theme="dark"] {
   --k-bg: #16120F; --k-card: #221E1A; --k-line: #322B25; --k-accent: #D6794C;
@@ -59,24 +54,9 @@ body { overscroll-behavior-y: none; }
   color: var(--k-ink, #2A2521); overflow: hidden; position: relative; }
 .k-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-/* every screen clears the status bar at the top and the floating tab bar + home
-   indicator at the bottom. Content scrolls UP under the status bar, where the
-   .k-topfade scrim dissolves it (iOS scroll-edge effect). */
-.k-screen { padding: calc(var(--k-safetop) + 4px) 0 calc(88px + env(safe-area-inset-bottom)); }
-
-/* Frosted scroll-edge at the top: a fixed scrim that is opaque canvas under the
-   status bar and blurs+fades content to clear just below it, so nothing cuts off
-   hard against the status bar. mask fades the blur itself out; pointer-events:none
-   keeps the header tappable through it. */
-.k-topfade {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 60; pointer-events: none;
-  height: calc(var(--k-safetop) + 8px);
-  background: linear-gradient(to bottom,
-    var(--k-bg) 44%, color-mix(in srgb, var(--k-bg) 55%, transparent) 72%, transparent);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 44%, transparent);
-  mask-image: linear-gradient(to bottom, #000 44%, transparent);
-}
+/* No top padding — content sits flush at the top edge (no status-bar reservation,
+   no iOS scroll-edge scrim). Bottom still clears the floating tab bar + home indicator. */
+.k-screen { padding: 0 0 calc(88px + env(safe-area-inset-bottom)); }
 
 /* =========================================================================
    Motion — entrances, sheet, detail push, fades. Brief and soft.
