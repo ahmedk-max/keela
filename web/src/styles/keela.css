@@ -22,11 +22,11 @@
 :root {
   --k-bg: #ECE5D6; --k-card: #FDFBF6; --k-line: #E0D8C6; --k-accent: #C4623A;
   --k-pad: 20px;
-  /* Top safe inset for the status bar. Floored so the header always clears the
-     status bar even when an installed iOS PWA under-reports the inset (a known
-     quirk with default status-bar style + viewport-fit=cover); uses the real
-     inset when it is larger. */
-  --k-safetop: max(env(safe-area-inset-top, 0px), 59px);
+  /* Top safe inset for the status bar — trust the device's REAL inset via env(),
+     with only a small 12px fallback for non-notch devices / the browser preview
+     (which report 0). Notch/Island phones get their true inset, so the header
+     clears the status bar without the fixed 59px floor's extra dead space. */
+  --k-safetop: max(env(safe-area-inset-top, 0px), 12px);
 }
 [data-theme="dark"] {
   --k-bg: #16120F; --k-card: #221E1A; --k-line: #322B25; --k-accent: #D6794C;
@@ -62,7 +62,7 @@ body { overscroll-behavior-y: none; }
 /* every screen clears the status bar at the top and the floating tab bar + home
    indicator at the bottom. Content scrolls UP under the status bar, where the
    .k-topfade scrim dissolves it (iOS scroll-edge effect). */
-.k-screen { padding: calc(var(--k-safetop) + 4px) 0 calc(94px + env(safe-area-inset-bottom)); }
+.k-screen { padding: calc(var(--k-safetop) + 4px) 0 calc(88px + env(safe-area-inset-bottom)); }
 
 /* Frosted scroll-edge at the top: a fixed scrim that is opaque canvas under the
    status bar and blurs+fades content to clear just below it, so nothing cuts off
