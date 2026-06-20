@@ -118,9 +118,6 @@ function ListRow({ tile, name, sub, right, rightSub, onClick, tag, dimName }) {
   )
 }
 
-const SubTag = ({ th }) => (
-  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3, background: th.card2, borderRadius: 6, padding: '2px 5px', flex: 'none' }}>Sub</span>
-)
 
 const secStyle = (th) => ({ padding: '22px 0 2px', marginTop: 16, borderTop: `1px solid ${th.line}` })
 const dayHead = (th) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 4px 8px' })
@@ -344,7 +341,6 @@ function RenewalCalendar({ bills, nav }) {
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: th.ink }}>{i.name}</span>
-                {i.sub && <SubTag th={th} />}
               </span>
               <span style={{ display: 'block', fontSize: 11.5, color: th.ink3, marginTop: 2 }}>{rel(i.days)} · {i.cat}</span>
             </span>
@@ -387,7 +383,6 @@ function RecurringView({ bills, cf, nav }) {
           onClick={() => nav.editBill(b)}
           tile={<CatTile color={color} icon={icon} />}
           name={b.name}
-          tag={b.sub ? <SubTag th={th} /> : null}
           sub={`${b.cat} · ${b.type === 'yearly' ? 'Yearly' : b.day ? 'Due ' + b.day : 'Monthly'}`}
           right={fmt(b.amount, b.amount % 1 ? 2 : 0)}
           rightSub={b.type === 'yearly' ? '/yr' : '/mo'}

@@ -1,7 +1,7 @@
 /* Keela — Home: daily-driver. "Left to spend" hero · monthly flow · runway ·
    goals rail · latest note. "Warm" language: dark espresso hero on warm sand. */
 import { useTheme } from '../lib/theme'
-import { Mark, Ring, Sparkline, StackedBar, Pill, KeelaWhisper, CountUp, Icons } from '../ui/primitives'
+import { Mark, Ring, Sparkline, StackedBar, Progress, Pill, KeelaWhisper, CountUp, Icons } from '../ui/primitives'
 import { whispers } from '../lib/whispers'
 import { fmt, fmtDate, monthsBetween, NOW_MONTH } from '../lib/format'
 
@@ -146,7 +146,14 @@ export function Home({ data, nav }) {
             ))}
           </div>
           <div style={{ fontSize: 11.5, color: th.ink3, marginTop: 14 }}>
-            {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact · vow {pactElapsed} of {pactTotal} months · {pactLeft} left
+            {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact
+          </div>
+          {/* Vow timeline — visualize progress through the pact; months left is the headline */}
+          <div style={{ marginTop: 12 }}>
+            <Progress pct={(pactElapsed / pactTotal) * 100} height={8} />
+            <div style={{ textAlign: 'right', marginTop: 7, fontSize: 11, color: th.ink3 }}>
+              <b style={{ color: th.ink2, fontWeight: 700 }}>{pactLeft}</b> months left
+            </div>
           </div>
         </div>
 
@@ -229,10 +236,6 @@ export function Home({ data, nav }) {
           </div>
         )}
 
-        {/* QUICK ADD */}
-        <button onClick={() => nav.addTx()} style={{ width: '100%', marginTop: 24, border: 'none', borderRadius: 16, padding: 15, background: th.accent, color: th.onAccent, fontSize: 13, fontWeight: 700, letterSpacing: '.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-          <span style={{ fontSize: 16, lineHeight: 0 }}>+</span> ADD TRANSACTION
-        </button>
       </div>
     </div>
   )
