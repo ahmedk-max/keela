@@ -275,7 +275,7 @@ export function Sheet({ title, onClose, children, cancelLabel = 'Cancel' }) {
   return (
     <div className={'k-overlay' + (closing ? ' out' : '')} onClick={close}>
       <div className="k-sheet kscroll" onClick={(e) => e.stopPropagation()} style={{
-        maxHeight: '88%', overflowY: 'auto', background: th.card,
+        maxHeight: '88%', overflowY: 'auto', overflowX: 'hidden', background: th.card,
         borderRadius: '28px 28px 0 0', padding: '8px 20px calc(18px + env(safe-area-inset-bottom))',
         boxShadow: '0 -10px 40px rgba(0,0,0,.2)',
       }}>
@@ -291,15 +291,17 @@ export function Sheet({ title, onClose, children, cancelLabel = 'Cancel' }) {
   )
 }
 
-/* form input shared by the sheets */
+/* form input shared by the sheets. 16px minimum is deliberate: iOS Safari/PWA
+   auto-zooms (and then pans, knocking content off-screen and making the scrim
+   un-tappable) when a focused input is below 16px. Never drop below 16 here. */
 export function Field({ value, onChange, placeholder, type, inputMode, style, big }) {
   const th = useTheme()
   return (
     <input
       value={value} onChange={onChange} placeholder={placeholder} type={type} inputMode={inputMode}
       style={{
-        display: 'block', width: '100%', border: 'none', background: th.card2, borderRadius: 12,
-        padding: '10px 13px', marginTop: 10, fontSize: big ? 26 : 14, fontWeight: big ? 800 : 400,
+        display: 'block', width: '100%', maxWidth: '100%', border: 'none', background: th.card2, borderRadius: 12,
+        padding: '11px 13px', marginTop: 10, fontSize: big ? 26 : 16, fontWeight: big ? 800 : 400,
         color: th.ink, outline: 'none', fontFamily: 'inherit', ...style,
       }}
     />

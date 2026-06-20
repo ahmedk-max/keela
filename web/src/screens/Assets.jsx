@@ -422,8 +422,8 @@ export function HoldingSheet({ holding, portfolioId, portfolios, onClose, onSave
             <>
               <div style={lbl(th)}>Portfolio</div>
               <select value={pid} onChange={(e) => setPid(e.target.value)} style={{
-                display: 'block', width: '100%', border: 'none', background: th.card2, borderRadius: 12,
-                padding: '11px 13px', fontSize: 14, color: th.ink, outline: 'none', fontFamily: 'inherit',
+                display: 'block', width: '100%', maxWidth: '100%', border: 'none', background: th.card2, borderRadius: 12,
+                padding: '11px 13px', fontSize: 16, color: th.ink, outline: 'none', fontFamily: 'inherit',
               }}>
                 {realPfs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
