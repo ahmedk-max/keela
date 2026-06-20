@@ -64,8 +64,10 @@ body { overscroll-behavior-y: none; }
 @keyframes kfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .fade-in { animation: kfade 360ms cubic-bezier(.2,.8,.2,1) both; }
 
-/* full-screen detail page pushes in from the right (iOS) */
-.k-detail { position: absolute; inset: 0; z-index: 70; background: var(--k-bg);
+/* full-screen detail page pushes in from the right (iOS). z-index sits ABOVE the
+   floating tab bar (75) so the opaque page covers it — the detail view is a focused
+   context, not one with a nav hovering over its content — but below sheets (80). */
+.k-detail { position: absolute; inset: 0; z-index: 78; background: var(--k-bg);
   display: flex; flex-direction: column;
   animation: kdetailin 340ms cubic-bezier(.32,.72,0,1) both; will-change: transform; }
 @keyframes kdetailin { from { transform: translateX(100%); } to { transform: translateX(0); } }

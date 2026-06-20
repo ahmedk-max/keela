@@ -338,7 +338,7 @@ export function DetailShell({ onClose, right, children }) {
         </button>
         {right || null}
       </div>
-      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 22px 40px' }}>{children}</div>
+      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 22px calc(40px + env(safe-area-inset-bottom))' }}>{children}</div>
     </div>
   )
 }
