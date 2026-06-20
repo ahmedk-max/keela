@@ -12,9 +12,11 @@ import { db } from '../lib/firebase'
 import { cap, catCode, fmt, NOW_MONTH } from '../lib/format'
 import { DEMO, demoData } from './demo'
 
+// Warm fallback palette for goals / holdings / portfolios with no stored colour
+// (mirrors lib/theme.js SWATCHES).
 const COFFEE = [
-  'var(--qahwa-latte)', 'var(--qahwa-brewed)', 'var(--qahwa-espresso)',
-  'var(--qahwa-bean)', 'var(--qahwa-flat)', 'var(--qahwa-accent)',
+  '#C4623A', '#E0913A', '#5C9A6A', '#C2607F', '#5570B8', '#A86A92',
+  '#C2574E', '#8A6CB0', '#6B8A7A', '#C99A52', '#6F7787', '#94897A',
 ]
 
 const hhmm = (createdAt) => {
@@ -51,7 +53,7 @@ export function buildData(raw) {
     allocated: g.allocated || 0,
     spent: g.spent || 0,
     status: g.status || 'active',
-    color: g.color || 'var(--qahwa-accent)',
+    color: g.color || '#C4623A',
     code: codeFromName(g.name),
     targetDate: (g.targetDate || '').slice(0, 7) || NOW_MONTH,
     note: g.note || '',
@@ -116,7 +118,7 @@ export function buildData(raw) {
   if (orphans.length) {
     portfolios.push({
       id: '_default', name: 'Holdings', target: 0, targetDate: NOW_MONTH,
-      color: 'var(--qahwa-flat)', note: '', holdings: orphans, isDefault: true,
+      color: '#BEB6A3', note: '', holdings: orphans, isDefault: true,
     })
   }
   for (const p of portfolios) {

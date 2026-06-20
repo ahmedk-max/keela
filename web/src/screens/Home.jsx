@@ -1,40 +1,43 @@
-/* Keela — Home: daily-driver. Variable headroom hero · runway · goals grid. */
-import { Delta, KeelaNote, Mark, Icons, Sparkline, CountUp, KeelaWhisper } from '../ui/primitives'
+/* Keela — Home: daily-driver. "Left to spend" hero · monthly flow · runway ·
+   goals rail · latest note. "Warm" language: dark espresso hero on warm sand. */
+import { useTheme } from '../lib/theme'
+import { Mark, Ring, Sparkline, StackedBar, Pill, KeelaWhisper, CountUp, Icons } from '../ui/primitives'
 import { whispers } from '../lib/whispers'
-import { GoalScroll, RunwayBar } from './home-extras'
-import { CashflowSankey } from '../ui/echart'
-import { fmt, monthsBetween, NOW_MONTH } from '../lib/format'
+import { fmt, fmtDate, monthsBetween, NOW_MONTH } from '../lib/format'
 
 const DAY = 86400000
 
 export function Home({ data, nav }) {
+  const th = useTheme()
   const { goals, profile, snapshots, meetings } = data
   const cf = data.cashflow
 
   // ----- this cycle: variable headroom (the number you open the app for) -----
-  const expenses = cf.fixed + cf.subs                         // fixed + subs, clumped
+  const expenses = cf.fixed + cf.subs
   const variableLeft = cf.variableBudget - cf.variableSpent
   const variablePct = cf.variableBudget > 0
     ? Math.round((cf.variableSpent / cf.variableBudget) * 100)
     : (cf.variableSpent > 0 ? 100 : 0)
 
-  // cycle progress — how far through the pay cycle we are, vs how fast we're spending
   const startMs = new Date(cf.cycleStart).getTime()
   const endMs = new Date(cf.cycleEnd).getTime()
   const cycleLen = Math.max(1, Math.round((endMs - startMs) / DAY))
   const dayInCycle = Math.min(cycleLen, Math.max(0, Math.round((Date.now() - startMs) / DAY)))
   const daysLeft = Math.max(0, cycleLen - dayInCycle)
   const timePct = Math.round((dayInCycle / cycleLen) * 100)
-  const onPace = variablePct <= timePct                       // spending slower than time = ahead
+  const onPace = variablePct <= timePct
   const perDay = daysLeft > 0 ? Math.round(variableLeft / daysLeft) : variableLeft
+
+  const over = variableLeft < 0
+  const paceLabel = over ? 'Over budget' : onPace ? 'On pace' : 'Over pace'
+  const paceBg = over ? 'rgba(240,138,126,.18)' : onPace ? 'rgba(120,200,150,.18)' : 'rgba(230,170,90,.2)'
+  const paceFg = over ? '#F3B4AC' : onPace ? '#9FE0B4' : '#F0C98E'
+  const barColor = over ? '#E5786C' : onPace ? '#7BC894' : '#E5A862'
 
   // ----- runway: liquid (unearmarked) money ÷ monthly essentials -----
   const nw = profile.netWorth
   const isEmergency = (g) => /emerg/i.test(g.name)
   const goalBal = (g) => Math.max(0, (g.allocated || 0) - (g.spent || 0))
-  // Earmarked = money reserved for a specific non-emergency goal (a kitchen, a
-  // wedding) — committed even if the goal is "done" but not yet spent. Everything
-  // else (assets + the emergency fund) is liquid runway you could actually live on.
   const earmarkedSegs = goals
     .filter((g) => !isEmergency(g))
     .map((g) => ({ id: g.id, name: g.name, color: g.color, bal: goalBal(g) }))
@@ -46,19 +49,15 @@ export function Home({ data, nav }) {
   const runwayLabel = runway >= 100 ? '99+' : String(Math.round(runway))
   const freePct = nw > 0 ? Math.round((liquid / nw) * 100) : 0
 
-  // net-worth month delta (kept small — net worth is no longer the headline)
   const series = snapshots.map((s) => s.netWorth)
   const prev = series.length > 1 ? series[series.length - 2] : series[0]
   const delta = nw - prev
   const deltaPct = prev ? (delta / prev) * 100 : 0
 
-  // ----- the vow: 36-month pact countdown (Oct 2024 → Oct 2027) -----
   const pactTotal = Math.max(1, monthsBetween(profile.pactStart, profile.pactEnd))
   const pactElapsed = Math.min(pactTotal, Math.max(0, monthsBetween(profile.pactStart, NOW_MONTH)))
   const pactLeft = Math.max(0, pactTotal - pactElapsed)
 
-  // ----- goals: show every bucket that still holds money — including funded ones
-  // not yet spent — in-progress first; only emptied buckets collapse to a count.
   const isFunded = (g) => g.status === 'completed' || (g.allocated || 0) >= g.target
   const visibleGoals = goals
     .filter((g) => goalBal(g) > 0)
@@ -68,139 +67,171 @@ export function Home({ data, nav }) {
   const latest = meetings[0]
   const hint = whispers(data)[0]
 
+  const flowTotal = Math.max(1, cf.saved + expenses + cf.variableSpent)
+  const iconBtn = {
+    width: 38, height: 38, border: `1px solid ${th.line}`, borderRadius: '50%', background: th.card,
+    color: th.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+  }
+  const secStyle = { padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }
+  const headStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }
+  const dim = 'rgba(243,238,227,.6)'
+
   return (
     <div className="k-screen">
-      {/* header */}
-      <div className="k-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <Mark size={22} fill="var(--qahwa-accent)" />
-          <span style={{ font: '600 18px/1 var(--qahwa-font-ui)', letterSpacing: '-0.01em' }}>Keela</span>
+      <div style={{ padding: '0 20px' }}>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <Mark size={30} color={th.accent} style={{ marginLeft: -2 }} />
+            <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.02em', color: th.ink }}>Keela</span>
+          </div>
+          <div style={{ display: 'flex', gap: 9 }}>
+            <button onClick={nav.toggleTheme} style={iconBtn} aria-label="Toggle theme">{Icons.theme}</button>
+            <button onClick={nav.openSettings} style={iconBtn} aria-label="Settings">{Icons.settings}</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button className="k-icontap" onClick={nav.toggleTheme} aria-label="Toggle theme">
-            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-              <circle cx="9" cy="9" r="6" />
-              <path d="M9 3a6 6 0 0 0 0 12z" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
-          <button className="k-icontap" onClick={nav.openSettings} aria-label="Settings">{Icons.sliders}</button>
-        </div>
-      </div>
 
-      {/* THIS CYCLE — variable headroom, the daily number. One figure, one
-          verdict, one gauge: the breakdown moves to its own sections below. */}
-      <div className="k-hero" style={{ paddingTop: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <span className="k-label dim" style={{ display: 'block', marginBottom: 10 }}>Left to spend</span>
-            <div className="k-hero-num" style={{ fontSize: 46, color: variableLeft < 0 ? 'var(--qahwa-loss)' : 'var(--qahwa-fg-1)' }}>
-              <CountUp value={variableLeft} /><span className="k-sar" style={{ fontSize: 14, marginLeft: 8 }}>SAR</span>
+        {/* HERO — left to spend */}
+        <div style={{ background: th.darkcard, borderRadius: 28, padding: '24px 24px 22px', color: th.onDark, boxShadow: th.shadow }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(243,238,227,.55)' }}>Left to spend</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 12 }}>
+                <CountUp value={variableLeft} style={{ fontSize: 42, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: over ? '#F08A7E' : th.onDark }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(243,238,227,.5)' }}>SAR</span>
+              </div>
             </div>
+            <Pill bg={paceBg} fg={paceFg}>{paceLabel}</Pill>
           </div>
-          <span className={'k-tag ' + (variableLeft < 0 ? 'loss' : onPace ? 'gain' : 'loss')} style={{ marginTop: 6 }}>
-            {variableLeft < 0 ? 'Over budget' : onPace ? 'On pace' : 'Over pace'}
-          </span>
-        </div>
-
-        <div className="k-micro" style={{ marginTop: 12 }}>
-          {daysLeft > 0
-            ? <>~<span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(Math.max(0, perDay))}</span>/day to coast the last {daysLeft} days</>
-            : 'cycle ending'}
-        </div>
-
-        {/* variable budget bar with a "where you should be" time marker */}
-        <div style={{ position: 'relative', marginTop: 14 }}>
-          <div className="k-flowbar">
-            <div className="k-flowbar-seg" style={{ width: Math.min(100, variablePct) + '%', background: variableLeft < 0 ? 'var(--qahwa-loss)' : onPace ? 'var(--qahwa-gain)' : 'var(--qahwa-accent)' }} />
+          <div style={{ fontSize: 12.5, color: dim, marginTop: 14 }}>
+            {daysLeft > 0 ? `~${fmt(Math.max(0, perDay))}/day to coast the last ${daysLeft} days` : 'cycle ending'}
           </div>
-          <div style={{ position: 'absolute', left: Math.min(100, timePct) + '%', top: -3, bottom: -3, width: 1, background: 'var(--qahwa-fg-1)' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7 }}>
-          <span className="k-micro"><span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.variableSpent)}</span> spent</span>
-          <span className="k-micro">of <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.variableBudget)}</span> budget</span>
-        </div>
-      </div>
-
-      {/* KEELA WHISPER — one derived nudge, her voice, inline */}
-      {hint && (
-        <div className="k-sec" style={{ marginTop: 16 }}>
-          <KeelaWhisper>{hint}</KeelaWhisper>
-        </div>
-      )}
-
-      {/* MONTHLY FLOW — where each month's income goes, as a river */}
-      <div className="k-sec div">
-        <div className="k-sec-head">
-          <span className="k-label">Monthly flow</span>
-          <span className="k-micro"><span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(cf.income)}</span> income</span>
-        </div>
-        <CashflowSankey income={cf.income} saved={cf.saved} expenses={expenses} variable={cf.variableSpent} />
-        <div className="k-figs" style={{ marginTop: 14 }}>
-          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-gain)' }} /><span className="k-fig-val">{fmt(cf.saved)}</span><span className="k-label dim">Saved &middot; {cf.rate}%</span></div>
-          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-loss)' }} /><span className="k-fig-val">{fmt(expenses)}</span><span className="k-label dim">Expenses</span></div>
-          <div className="k-fig"><div className="k-fig-tick" style={{ background: 'var(--qahwa-accent)' }} /><span className="k-fig-val">{fmt(cf.variableSpent)}</span><span className="k-label dim">Variable</span></div>
-        </div>
-        <div className="k-micro" style={{ marginTop: 12, color: 'var(--qahwa-fg-3)' }}>
-          {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact &middot; vow {pactElapsed} of {pactTotal} months &middot; {pactLeft} left
-        </div>
-      </div>
-
-      {/* RUNWAY — net worth, reframed as freedom */}
-      <div className="k-sec div">
-        <div className="k-sec-head">
-          <span className="k-label">Runway &middot; if income stopped</span>
-          <span className="k-micro" style={{ cursor: 'pointer' }} onClick={() => nav.goTab('assets')}>Net worth &rsaquo;</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
-            <span className="k-num" style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-0.02em' }}>{runwayLabel}</span>
-            <span className="k-micro">months of essentials covered</span>
+          <div style={{ position: 'relative', marginTop: 16, height: 10, borderRadius: 999, background: 'rgba(255,255,255,.1)' }}>
+            <div style={{ height: '100%', borderRadius: 999, width: `${Math.min(100, variablePct)}%`, background: barColor, transition: 'width 560ms cubic-bezier(.2,.8,.2,1)' }} />
+            <div style={{ position: 'absolute', top: -3, bottom: -3, width: 2, borderRadius: 2, background: 'rgba(255,255,255,.85)', left: `${Math.min(100, timePct)}%` }} />
           </div>
-          <span style={{ display: 'block', width: 88, height: 30, flex: 'none' }}>
-            <Sparkline values={series} h={30} stroke="var(--qahwa-gain)" />
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: dim }}>
+            <span><b style={{ color: th.onDark }}>{fmt(cf.variableSpent)}</b> spent</span>
+            <span>of <b style={{ color: th.onDark }}>{fmt(cf.variableBudget)}</b> budget</span>
+          </div>
         </div>
-        <div style={{ marginTop: 14 }}>
-          <RunwayBar liquid={liquid} earmarked={earmarkedTotal} />
+
+        {/* KEELA WHISPER — one derived nudge, her voice */}
+        {hint && <div style={{ marginTop: 16 }}><KeelaWhisper>{hint}</KeelaWhisper></div>}
+
+        {/* MONTHLY FLOW */}
+        <div style={secStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>Monthly flow</span>
+            <span style={{ fontSize: 12, color: th.ink2 }}><b style={{ color: th.ink }}>{fmt(cf.income)}</b> income</span>
+          </div>
+          <StackedBar height={14} segs={[
+            { w: (cf.saved / flowTotal) * 100, color: th.green },
+            { w: (expenses / flowTotal) * 100, color: th.loss },
+            { w: (cf.variableSpent / flowTotal) * 100, color: th.amber },
+          ]} />
+          <div style={{ display: 'flex', gap: 14, marginTop: 16 }}>
+            {[
+              { c: th.green, l: `Saved ${cf.rate}%`, v: fmt(cf.saved) },
+              { c: th.loss, l: 'Expenses', v: fmt(expenses) },
+              { c: th.amber, l: 'Variable', v: fmt(cf.variableSpent) },
+            ].map((f, i) => (
+              <div key={i} style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 3, background: f.c }} />
+                  <span style={{ fontSize: 11, color: th.ink2, whiteSpace: 'nowrap' }}>{f.l}</span>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: th.ink, marginTop: 5 }}>{f.v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11.5, color: th.ink3, marginTop: 14 }}>
+            {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact · vow {pactElapsed} of {pactTotal} months · {pactLeft} left
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-          <span className="k-micro"><span className="k-num k-gain" style={{ fontWeight: 600 }}>{fmt(liquid)}</span> liquid &middot; {freePct}% free</span>
-          <span className="k-micro">Net worth <span className="k-num" style={{ fontWeight: 600, color: 'var(--qahwa-fg-2)' }}>{fmt(nw)}</span> <Delta value={delta} pct={deltaPct} dp={1} /></span>
+
+        {/* RUNWAY */}
+        <div style={secStyle}>
+          <div style={headStyle}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>Runway</span>
+            <button onClick={() => nav.goTab('assets')} style={{ border: 'none', background: 'none', fontSize: 12, color: th.ink2, cursor: 'pointer' }}>Net worth ›</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{runwayLabel}</span>
+              <span style={{ fontSize: 12, color: th.ink2, maxWidth: 110, lineHeight: 1.3 }}>months of essentials covered</span>
+            </div>
+            <Sparkline values={series} w={320} h={48} width={92} height={34} color={th.green} style={{ flex: 'none' }} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <StackedBar height={12} segs={[
+              { w: (liquid / (nw || 1)) * 100, color: th.green },
+              { w: (earmarkedTotal / (nw || 1)) * 100, color: th.flat },
+            ]} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: th.ink2 }}>
+            <span><b style={{ color: th.green }}>{fmt(liquid)}</b> liquid · {freePct}% free</span>
+            <span>Net worth <b style={{ color: th.ink }}>{fmt(nw)}</b> <b style={{ color: delta >= 0 ? th.gain : th.loss }}>{delta >= 0 ? '▲ ' : '▼ '}{fmt(Math.abs(delta))} · {delta >= 0 ? '+' : '−'}{fmt(Math.abs(deltaPct), 1)}%</b></span>
+          </div>
+          {earmarkedSegs.length > 0 && (
+            <div style={{ fontSize: 11, color: th.ink3, marginTop: 7 }}>
+              Earmarked: {earmarkedSegs.slice(0, 3).map((g) => g.name).join(' · ')}
+              {earmarkedSegs.length > 3 ? ` · +${earmarkedSegs.length - 3} more` : ''}
+            </div>
+          )}
         </div>
-        {earmarkedSegs.length > 0 && (
-          <div className="k-micro" style={{ marginTop: 5, color: 'var(--qahwa-fg-3)' }}>
-            Earmarked: {earmarkedSegs.slice(0, 3).map((g) => g.name).join(' · ')}
-            {earmarkedSegs.length > 3 ? ` · +${earmarkedSegs.length - 3} more` : ''}
+
+        {/* SAVINGS GOALS — horizontal rail of ring cards */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{ ...headStyle, padding: '0 2px' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>Savings goals</span>
+            <button onClick={() => nav.goTab('buckets')} style={{ border: 'none', background: 'none', fontSize: 12, color: th.ink2, cursor: 'pointer' }}>
+              {doneCount > 0 ? `${doneCount} done · all ›` : 'All ›'}
+            </button>
+          </div>
+          {visibleGoals.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: th.ink3, fontStyle: 'italic', padding: '2px 2px' }}>No active goals — every bucket is full.</div>
+          ) : (
+            <div className="kscroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', margin: '4px -20px 0', padding: '2px 20px 8px' }}>
+              {visibleGoals.map((g) => {
+                const bal = goalBal(g)
+                const pct = g.target > 0 ? Math.round((bal / g.target) * 100) : 0
+                const funded = isFunded(g)
+                return (
+                  <button key={g.id} onClick={() => nav.openBucket(g.id)} style={{ flex: 'none', width: 142, background: th.card, border: `1px solid ${th.line}`, borderRadius: 22, padding: 16, textAlign: 'left', cursor: 'pointer' }}>
+                    <Ring pct={funded ? 100 : pct} size={64} stroke={6} color={g.color} style={{ marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: g.color }}>{funded ? '✓' : `${pct}%`}</span>
+                    </Ring>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: th.ink2, marginTop: 4 }}>{fmt(bal)}{funded ? ' left' : ` / ${fmt(g.target)}`}</div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* KEELA NOTE */}
+        {latest && (
+          <div style={{ marginTop: 22 }}>
+            <div style={{ ...headStyle, padding: '0 2px' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>Keela&rsquo;s latest note</span>
+              <button onClick={() => nav.goTab('keela')} style={{ border: 'none', background: 'none', fontSize: 12, color: th.ink2, cursor: 'pointer' }}>All notes ›</button>
+            </div>
+            <button onClick={() => nav.openMeeting(latest.id)} style={{ display: 'block', width: '100%', textAlign: 'left', background: th.accentSoft, border: 'none', borderRadius: 24, padding: '18px 20px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                <span style={{ width: 20, height: 20, borderRadius: 7, background: th.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Mark size={11} color="#fff" /></span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: th.accent }}>Keela</span>
+                <span style={{ fontSize: 11, color: th.ink3, marginLeft: 'auto' }}>{fmtDate(latest.date)}</span>
+              </div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.55, color: th.ink, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{latest.summary}</div>
+            </button>
           </div>
         )}
-      </div>
 
-      {/* SAVINGS GOALS — 2-col grid, finished ones hidden */}
-      <div className="k-sec div">
-        <div className="k-sec-head">
-          <span className="k-label">Savings goals</span>
-          <span className="k-micro" style={{ cursor: 'pointer' }} onClick={() => nav.goTab('buckets')}>
-            {doneCount > 0 ? `${doneCount} done · all ` : 'All '}&rsaquo;
-          </span>
-        </div>
-        <GoalScroll goals={visibleGoals} onOpen={nav.openBucket} />
-      </div>
-
-      {/* KEELA NOTE */}
-      {latest && (
-        <div className="k-sec div">
-          <div className="k-sec-head"><span className="k-label">Keela&rsquo;s latest note</span>
-            <span className="k-micro" style={{ cursor: 'pointer' }} onClick={() => nav.goTab('keela')}>All notes &rsaquo;</span></div>
-          <KeelaNote date={latest.date} clamp onClick={() => nav.openMeeting(latest.id)}>
-            {latest.summary}
-          </KeelaNote>
-        </div>
-      )}
-
-      {/* QUICK ADD */}
-      <div className="k-sec" style={{ marginTop: 24 }}>
-        <button className="k-btn accent full" onClick={() => nav.addTx()}>
-          <span style={{ fontSize: 15, lineHeight: 0 }}>+</span> ADD TRANSACTION
+        {/* QUICK ADD */}
+        <button onClick={() => nav.addTx()} style={{ width: '100%', marginTop: 24, border: 'none', borderRadius: 16, padding: 15, background: th.accent, color: th.onAccent, fontSize: 13, fontWeight: 700, letterSpacing: '.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          <span style={{ fontSize: 16, lineHeight: 0 }}>+</span> ADD TRANSACTION
         </button>
       </div>
     </div>

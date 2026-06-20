@@ -62,15 +62,24 @@ export const CAT = {
 
 export const getCat = (name) => CAT[name] || null
 
-/* ---------- Ledger entry types (bucket activity) ---------- */
+/* ---------- Ledger entry types (bucket / holding activity) ----------
+   `tone` resolves to a theme colour at render time via entryMeta(type, th). */
 export const ENTRY = {
-  deposit:    { color: 'var(--qahwa-gain)', icon: svg(<><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>) },
-  withdrawal: { color: 'var(--qahwa-loss)', icon: svg(<><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></>) },
-  spend:      { color: 'var(--qahwa-loss)', icon: svg(<><path d="M7 17 17 7" /><path d="M7 7h10v10" /></>) },
-  initial:    { color: 'var(--qahwa-fg-2)', icon: svg(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>) },
-  update:     { color: 'var(--qahwa-accent)', icon: svg(<><path d="m3 17 6-6 4 4 8-8" /><path d="M17 7h4v4" /></>) },
+  deposit:    { tone: 'gain', sign: '+', label: 'Deposit',    icon: svg(<><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>) },
+  withdrawal: { tone: 'loss', sign: '−', label: 'Withdrawal', icon: svg(<><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></>) },
+  withdraw:   { tone: 'loss', sign: '−', label: 'Withdraw',   icon: svg(<><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></>) },
+  spend:      { tone: 'loss', sign: '−', label: 'Spent',      icon: svg(<><path d="M7 17 17 7" /><path d="M7 7h10v10" /></>) },
+  buy:        { tone: 'gain', sign: '+', label: 'Buy',        icon: svg(<><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>) },
+  sell:       { tone: 'loss', sign: '−', label: 'Sell',       icon: svg(<><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></>) },
+  initial:    { tone: 'ink3', sign: '',  label: 'Opening',    icon: svg(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>) },
+  update:     { tone: 'accent', sign: '', label: 'Update',    icon: svg(<><path d="m3 17 6-6 4 4 8-8" /><path d="M17 7h4v4" /></>) },
 }
 export const getEntry = (type) => ENTRY[type] || ENTRY.update
+// Resolve an entry's display colour against the active theme object.
+export const entryMeta = (type, th) => {
+  const e = ENTRY[type] || ENTRY.update
+  return { ...e, color: th[e.tone] || th.accent }
+}
 
 /* ---------- Misc badges ---------- */
 export const MISC = {
@@ -101,9 +110,10 @@ export function subLogo(name) {
   if (!name) return null
   const m = SUBS.find((s) => s.re.test(name))
   if (!m || !m.ic) return null
-  // Near-black brand marks (Apple TV, Notion) follow the theme foreground.
+  // Near-black brand marks (Apple TV, Notion) follow the theme foreground via
+  // currentColor (the caller sets colour on the tile).
   const dark = /^0{2}/.test(m.ic.hex)
-  const color = dark ? 'var(--qahwa-fg-1)' : '#' + m.ic.hex
+  const color = dark ? 'currentColor' : '#' + m.ic.hex
   const icon = (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={m.ic.path} /></svg>
   )

@@ -1,480 +1,451 @@
-/* Keela — shared UI primitives. Qahwa language. (ported from design ui.jsx) */
+/* =========================================================================
+   Keela — "Warm" shared primitives. Soft-rounded, theme-aware (inline styles
+   from lib/theme.js via useTheme). SVG charts (ring / donut / sparkline / bars),
+   the bottom sheet + detail-push shells, segmented control, count-up, whisper,
+   category tile, tab glyphs and the FAB. Every screen composes from here.
+   ========================================================================= */
 import React from 'react'
-import { fmt, fmtDate } from '../lib/format'
-import { getCat } from '../lib/icons'
-const { useState, useEffect, useRef, createContext, useContext } = React
+import { useTheme, tint } from '../lib/theme'
+import { fmt } from '../lib/format'
 
-/* ---------- Brand mark (two coffee cups from above) ---------- */
-export function Mark({ size = 24, fill = 'currentColor', style }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 512 512" style={style} aria-hidden="true">
-      <circle cx="156" cy="148" r="36" fill={fill} />
-      <circle cx="156" cy="320" r="100" fill={fill} />
-      <circle cx="356" cy="148" r="36" fill={fill} />
-      <circle cx="356" cy="320" r="100" fill={fill} />
-    </svg>
-  )
-}
-
-/* ---------- Money / numbers ---------- */
-export function Money({ value, dp = 0, sar = false, cls = '' }) {
-  return (
-    <span className={'k-num ' + cls} style={{ fontFeatureSettings: '"tnum" 1' }}>
-      {sar && <span className="k-sar" style={{ marginRight: 5 }}>SAR</span>}
-      {fmt(value, dp)}
-    </span>
-  )
-}
-
-export function Delta({ value, pct, dp = 0, abs = false }) {
-  const up = value >= 0
-  const arrow = value === 0 ? '—' : up ? '▲' : '▼'
-  const cls = value === 0 ? 'k-flat' : up ? 'k-gain' : 'k-loss'
-  return (
-    <span className={'k-num ' + cls} style={{ fontWeight: 500 }}>
-      {arrow} {pct != null ? `${fmt(Math.abs(pct), dp)}%` : abs ? fmt(Math.abs(value), dp) : fmt(value, dp)}
-    </span>
-  )
-}
-
-/* ---------- reduced-motion check ---------- */
 export const prefersReduced = () =>
-  typeof window !== 'undefined' && window.matchMedia &&
+  typeof window !== 'undefined' &&
+  window.matchMedia &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/* ---------- Count-up number — eases to value on mount and on change ----------
-   The fill of bars rises with CSS; the figures count up here in lockstep. Starts
-   from 0 on mount, animates from the previous value on live updates. */
-export function CountUp({ value, dp = 0, duration = 650, className = '', style }) {
-  const [display, setDisplay] = useState(0)
-  const fromRef = useRef(0)
-  const rafRef = useRef(0)
-  useEffect(() => {
-    const from = fromRef.current
-    const to = Number(value) || 0
-    if (prefersReduced() || from === to) { setDisplay(to); fromRef.current = to; return }
-    let start = null
-    const ease = (t) => 1 - Math.pow(1 - t, 3) // easeOutCubic
-    const step = (ts) => {
-      if (start === null) start = ts
-      const t = Math.min(1, (ts - start) / duration)
-      setDisplay(from + (to - from) * ease(t))
-      if (t < 1) rafRef.current = requestAnimationFrame(step)
-      else fromRef.current = to
-    }
-    rafRef.current = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [value, duration])
-  return <span className={className} style={style}>{fmt(display, dp)}</span>
-}
-
-/* ---------- Floating quick-add button (the daily action, always a thumb away) --- */
-export function Fab({ onClick, label = 'Add transaction' }) {
+/* ---------- Brand mark (the four-circle Keela glyph) ---------- */
+export function Mark({ size = 30, color = 'currentColor', style }) {
   return (
-    <button className="k-fab" onClick={onClick} aria-label={label}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-    </button>
-  )
-}
-
-/* ---------- Swipe row — drag left to reveal action buttons (iOS idiom) --------
-   Pointer-based so it works with touch and mouse. `touch-action: pan-y` on the
-   foreground lets vertical scrolling pass through; we only engage once a gesture
-   is decided horizontal. A real drag suppresses the trailing click; an open row
-   closes on tap before any row action fires. */
-export function SwipeRow({ actions = [], children }) {
-  const [dx, setDx] = useState(0)
-  const [anim, setAnim] = useState(false)
-  const openRef = useRef(false)
-  const curRef = useRef(0)
-  const start = useRef(null)
-  const axis = useRef(null)
-  const moved = useRef(false)
-  const W = actions.length * 72
-
-  const set = (v) => { curRef.current = v; setDx(v) }
-  const settle = (toOpen) => { setAnim(true); openRef.current = toOpen; set(toOpen ? -W : 0) }
-
-  const onDown = (e) => {
-    start.current = { x: e.clientX, y: e.clientY, base: curRef.current }
-    axis.current = null; moved.current = false; setAnim(false)
-    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* not all browsers */ }
-  }
-  const onMove = (e) => {
-    if (!start.current) return
-    const ddx = e.clientX - start.current.x
-    const ddy = e.clientY - start.current.y
-    if (axis.current === null) {
-      if (Math.abs(ddx) < 6 && Math.abs(ddy) < 6) return
-      axis.current = Math.abs(ddx) > Math.abs(ddy) ? 'x' : 'y'
-    }
-    if (axis.current !== 'x') return
-    moved.current = true
-    set(Math.max(-W - 20, Math.min(0, start.current.base + ddx)))
-  }
-  const onUp = () => {
-    if (!start.current) return
-    const wasX = axis.current === 'x'
-    start.current = null; axis.current = null
-    if (wasX) settle(curRef.current < -W / 2)
-  }
-  const onClickCapture = (e) => {
-    if (openRef.current || moved.current) {
-      e.preventDefault(); e.stopPropagation(); moved.current = false; settle(false)
-    }
-  }
-
-  return (
-    <div className="k-swipe">
-      <div className="k-swipe-actions" style={{ width: W }}>
-        {actions.map((a, i) => (
-          <button key={i} className={'k-swipe-act ' + (a.kind || '')} aria-label={a.label}
-            onClick={() => { settle(false); a.onClick && a.onClick() }}>
-            {a.icon}<span>{a.label}</span>
-          </button>
-        ))}
-      </div>
-      <div className="k-swipe-fg"
-        style={{ transform: `translateX(${dx}px)`, transition: anim ? 'transform 200ms var(--qahwa-ease)' : 'none' }}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-        onClickCapture={onClickCapture}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/* ---------- Keela whisper — a quiet, derived one-liner in her voice ---------- */
-export function KeelaWhisper({ children }) {
-  if (!children) return null
-  return (
-    <div className="k-whisper">
-      <span className="k-ember" />
-      <span className="k-whisper-txt">{children}</span>
-    </div>
-  )
-}
-
-/* ---------- Trend path builder ---------- */
-export function buildTrend(values, w, h, padTop = 6, padBot = 6) {
-  const min = Math.min(...values), max = Math.max(...values)
-  const span = max - min || 1
-  const n = values.length
-  const x = (i) => (n > 1 ? (i / (n - 1)) * w : w / 2)
-  const y = (v) => padTop + (1 - (v - min) / span) * (h - padTop - padBot)
-  const pts = values.map((v, i) => [x(i), y(v)])
-  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' ')
-  const area = line + ` L${w} ${h} L0 ${h} Z`
-  return { line, area, pts }
-}
-
-/* ---------- Hero trend backdrop ---------- */
-export function TrendBackdrop({ values }) {
-  const W = 360, H = 96
-  const { line, area } = buildTrend(values, W, H, 10, 2)
-  const [inn, setInn] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setInn(true), 40); return () => clearTimeout(t) }, [])
-  return (
-    <div className="k-hero-trend">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-        <path d={area} className="k-trendfill" style={{ opacity: inn ? 0.1 : 0 }} />
-        <path d={line} className="k-trendline" pathLength="1"
-          style={{ strokeDasharray: 1, strokeDashoffset: inn ? 0 : 1 }} />
-      </svg>
-    </div>
-  )
-}
-
-/* ---------- Bottom sheet — CSS-keyframe enter, JS-flagged exit (no first-frame race) ---------- */
-export const SheetCloseCtx = createContext(() => {})
-export const useSheetClose = () => useContext(SheetCloseCtx)
-
-export function Sheet({ title, onClose, children }) {
-  const [out, setOut] = useState(false)
-  const sheetRef = useRef(null)
-  const close = () => {
-    if (out) return
-    setOut(true)
-    setTimeout(onClose, 280) // a hair longer than the 260ms exit animation
-  }
-
-  // Focus the marked field only AFTER the slide-in finishes. Focusing during the
-  // animation raises the keyboard mid-flight, which resizes the viewport and
-  // breaks the entrance. Waiting for animationend keeps the open glitch-free.
-  useEffect(() => {
-    const el = sheetRef.current
-    if (!el) return
-    let done = false
-    const focusNow = () => {
-      if (done) return
-      done = true
-      el.querySelector('[data-autofocus]')?.focus()
-    }
-    const onEnd = (e) => { if (e.target === el && e.animationName === 'ksheet-in') focusNow() }
-    el.addEventListener('animationend', onEnd)
-    const fallback = setTimeout(focusNow, 460) // in case animationend never fires
-    return () => { el.removeEventListener('animationend', onEnd); clearTimeout(fallback) }
-  }, [])
-
-  return (
-    <SheetCloseCtx.Provider value={close}>
-      <div className={'k-overlay' + (out ? ' out' : '')} onClick={close}>
-        <div className="k-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
-          <div className="k-sheet-grab" />
-          <div className="k-sheet-head">
-            <span className="k-sheet-title">{title}</span>
-            <button className="k-sheet-cancel" onClick={close}>Cancel</button>
-          </div>
-          <div className="k-sheet-body">{typeof children === 'function' ? children(close) : children}</div>
-        </div>
-      </div>
-    </SheetCloseCtx.Provider>
-  )
-}
-
-/* ---------- Sparkline (detail views) ---------- */
-export function Sparkline({ values, h = 48, stroke = 'var(--qahwa-accent)', fill = true }) {
-  const W = 320, H = h
-  const { line, area } = buildTrend(values, W, H, 6, 4)
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: h, display: 'block' }}>
-      {fill && <path d={area} fill={stroke} opacity="0.06" />}
-      <path d={line} fill="none" stroke={stroke} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    <svg width={size} height={size} viewBox="0 0 512 512" style={style} aria-hidden="true">
+      <circle cx="156" cy="148" r="40" fill={color} />
+      <circle cx="156" cy="322" r="100" fill={color} />
+      <circle cx="356" cy="148" r="40" fill={color} />
+      <circle cx="356" cy="322" r="100" fill={color} />
     </svg>
   )
 }
 
-/* ---------- Pact ledger gauge ----------
-   kept/target = this cycle's save rate vs the pact line. Optional `vow` renders
-   the 36-month countdown (Oct 2024 → Oct 2027) as a thin progress strip. */
-export function PactGauge({ kept, target, vow }) {
-  const ahead = kept - target
+/* ---------- Progress ring with mount sweep ----------
+   Draws an empty track + a coloured arc that sweeps up from 0 on mount
+   (stroke-dashoffset transition). `children` render centred in the ring. */
+export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, sweep = true, style }) {
+  const th = useTheme()
+  const c = color || th.accent
+  const tk = track || th.track
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const target = circ * (1 - Math.min(1, Math.max(0, pct / 100)))
+  const [off, setOff] = React.useState(() => (sweep && !prefersReduced() ? circ : target))
+  React.useEffect(() => {
+    if (!sweep || prefersReduced()) { setOff(target); return }
+    const id = requestAnimationFrame(() => setOff(target))
+    return () => cancelAnimationFrame(id)
+  }, [target, sweep])
   return (
-    <div className="k-pact">
-      <div className="k-pact-top">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <span className="k-label" style={{ whiteSpace: 'nowrap' }}>Kept this cycle</span>
-          <span className="k-pact-kept k-gain">{kept}%</span>
-        </div>
-        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <span className="k-label dim">Save {target} / Live {100 - target}</span>
-          <span className={'k-num ' + (ahead >= 0 ? 'k-gain' : 'k-loss')} style={{ fontWeight: 600, fontSize: 13 }}>
-            {ahead >= 0 ? '▲ +' : '▼ −'}{Math.abs(ahead)} {ahead >= 0 ? 'ahead' : 'behind'}
-          </span>
-        </div>
-      </div>
-      <div className="k-gauge">
-        <div className="k-gauge-save" style={{ width: kept + '%' }}>
-          <span className="k-gauge-seg-lbl" style={{ color: 'var(--qahwa-fg-inv)' }}>SAVE</span>
-        </div>
-        <div className="k-gauge-live">
-          <span className="k-gauge-seg-lbl" style={{ color: 'var(--qahwa-fg-2)' }}>LIVE</span>
-        </div>
-        <div className="k-gauge-tick" data-l={target} style={{ left: target + '%' }} />
-      </div>
-      {vow && (
-        <div className="k-pact-foot" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <span className="k-micro" style={{ letterSpacing: '0.04em' }}>The vow &middot; month {vow.elapsed} of {vow.total}</span>
-            <span className="k-num k-em" style={{ fontWeight: 600, fontSize: 11 }}>{vow.left} mo left</span>
-          </div>
-          <div className="k-vow-bar"><i style={{ width: Math.min(100, vow.elapsed / vow.total * 100) + '%' }} /></div>
+    <div style={{ position: 'relative', width: size, height: size, ...style }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={tk} strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 760ms cubic-bezier(.2,.8,.2,1)' }}
+        />
+      </svg>
+      {children != null && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          {children}
         </div>
       )}
     </div>
   )
 }
 
-/* ---------- Progress bar ---------- */
-export function Progress({ pct, color = 'var(--qahwa-accent)' }) {
+/* ---------- Sparkline (area + line) ---------- */
+export function sparkPath(values, W = 320, H = 48) {
+  if (!values || !values.length) return { line: '', area: '' }
+  const min = Math.min(...values), max = Math.max(...values), span = max - min || 1, n = values.length
+  const x = (i) => (n > 1 ? (i / (n - 1)) * W : W / 2)
+  const y = (v) => 4 + (1 - (v - min) / span) * (H - 8)
+  const line = values.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ')
+  const area = line + ` L${W} ${H} L0 ${H} Z`
+  return { line, area }
+}
+export function Sparkline({ values, w = 320, h = 48, color, fillOpacity = 0.1, strokeWidth = 2.5, width = '100%', height, style }) {
+  const th = useTheme()
+  const c = color || th.green
+  const { line, area } = sparkPath(values, w, h)
   return (
-    <div className="k-bar">
-      <i style={{ width: Math.min(100, pct) + '%', background: color }} />
-    </div>
+    <svg width={width} height={height || h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: 'block', ...style }}>
+      <path d={area} fill={c} opacity={fillOpacity} />
+      <path d={line} fill="none" stroke={c} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+    </svg>
   )
 }
 
-/* ---------- Keela note object ---------- */
-export function KeelaNote({ date, children, clamp = false, onClick }) {
+/* ---------- Stacked bar (monthly flow / allocation / runway split) ---------- */
+export function StackedBar({ segs = [], height = 14, gap = 3, radius = 999, track, animate = true, style }) {
   return (
-    <div className="k-knote" onClick={onClick} style={onClick ? { cursor: 'pointer' } : null}>
-      <div className="k-knote-head">
-        <span className="k-ember" />
-        <span className="k-knote-by">Keela</span>
-        {date && <span className="k-knote-date">{fmtDate(date)}</span>}
-      </div>
-      <div className={'k-knote-body' + (clamp ? ' clamp' : '')}>{children}</div>
-    </div>
-  )
-}
-
-/* ---------- Icon badge (coloured tile) ---------- */
-export function Badge({ icon, img = null, color = 'var(--qahwa-fg-2)', dashed = false, ember = false }) {
-  return (
-    <span className={'k-sq tinted' + (dashed ? ' dashed' : '')} style={{ '--c': color }}>
-      {img ? <img src={img} alt="" /> : icon}
-      {ember && <span className="k-ember" />}
-    </span>
-  )
-}
-
-/* ---------- Category badge (icon + colour, falls back to a letter code) ---------- */
-export function CatSquare({ cat, code, keela }) {
-  const meta = getCat(cat)
-  if (!meta) {
-    return <span className="k-sq">{code}{keela && <span className="k-ember" />}</span>
-  }
-  return <Badge icon={meta.icon} color={meta.color} ember={keela} />
-}
-
-/* ---------- Tag ---------- */
-export function Tag({ children, kind = '' }) {
-  return <span className={'k-tag ' + kind}>{children}</span>
-}
-
-/* ---------- Segmented control ---------- */
-export function Segmented({ items, value, onChange }) {
-  return (
-    <div className="k-seg">
-      {items.map((it) => (
-        <div key={it.v} className={'k-seg-item' + (value === it.v ? ' on' : '')} onClick={() => onChange(it.v)}>
-          {it.label}
-        </div>
+    <div style={{ display: 'flex', height, borderRadius: radius, overflow: 'hidden', gap,
+      background: track || 'transparent', ...style }}>
+      {segs.filter((s) => s.w > 0).map((s, i) => (
+        <div key={i} style={{
+          width: `${s.w}%`, background: s.color, borderRadius: radius, minWidth: 2,
+          transformOrigin: 'left center',
+          animation: animate && !prefersReduced() ? 'kgrowx 620ms cubic-bezier(.2,.8,.2,1) both' : undefined,
+        }} />
       ))}
     </div>
   )
 }
 
-/* ---------- Empty state ---------- */
-export function Empty({ children }) {
+/* ---------- Single progress track ---------- */
+export function Progress({ pct = 0, color, track, height = 10, radius = 999, style }) {
+  const th = useTheme()
   return (
-    <div className="k-empty">
-      <Mark size={30} fill="var(--qahwa-fg-3)" style={{ opacity: 0.5 }} />
-      <div className="k-empty-txt">{children}</div>
+    <div style={{ position: 'relative', height, borderRadius: radius, background: track || th.track, overflow: 'hidden', ...style }}>
+      <div style={{ height: '100%', borderRadius: radius, width: `${Math.min(100, Math.max(0, pct))}%`,
+        background: color || th.accent, transition: 'width 560ms cubic-bezier(.2,.8,.2,1)' }} />
     </div>
   )
 }
 
-/* ---------- Markdown (small subset) ---------- */
-function parseInline(text, keyBase) {
-  const nodes = []
-  let rest = text, k = 0
-  const re = /(\*\*([^*]+)\*\*|\*([^*]+)\*)/
-  let mt
-  while ((mt = rest.match(re))) {
-    const idx = mt.index
-    if (idx > 0) nodes.push(rest.slice(0, idx))
-    if (mt[2] != null) nodes.push(<strong key={keyBase + '-' + (k++)}>{mt[2]}</strong>)
-    else nodes.push(<em key={keyBase + '-' + (k++)}>{mt[3]}</em>)
-    rest = rest.slice(idx + mt[0].length)
-  }
-  if (rest) nodes.push(rest)
-  return nodes
+/* ---------- Daily spend bars ---------- */
+export function Bars({ values = [], max, elapsedIdx, color, peakColor, track, height = 90, style }) {
+  const th = useTheme()
+  const mx = max || Math.max(...values, 1)
+  const peakIdx = values.indexOf(Math.max(...values))
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height, ...style }}>
+      {values.map((v, i) => {
+        const future = elapsedIdx != null && i + 1 > elapsedIdx
+        const col = future ? (track || th.track) : (i === peakIdx && v > 0 ? (peakColor || th.accentPress) : (color || th.accent))
+        return <div key={i} style={{ flex: 1, height: `${Math.max(3, (v / mx) * 100)}%`, borderRadius: 999, background: col, minHeight: 3 }} />
+      })}
+    </div>
+  )
 }
 
-const isRow = (l) => /^\s*\|.*\|\s*$/.test(l)
-const isSep = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l)
-const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+/* ---------- Donut (category arcs + centre + optional badges) ---------- */
+export function donutGeom(cats, total, R = 58, cx = 80, cy = 80, gapPx = 5) {
+  const C = 2 * Math.PI * R
+  let cum = 0
+  const segs = [], badges = []
+  const gap = total > 0 ? gapPx : 0
+  cats.forEach((c) => {
+    const frac = total > 0 ? c.amount / total : 0
+    const dashLen = frac * C
+    const startDeg = cum * 360
+    segs.push({
+      dash: `${Math.max(0, dashLen - gap).toFixed(1)} ${(C + gap).toFixed(1)}`,
+      rot: `rotate(${(startDeg - 90).toFixed(2)} ${cx} ${cy})`, color: c.color, C: C.toFixed(1),
+    })
+    const midDeg = (cum + frac / 2) * 360 - 90, rad = (midDeg * Math.PI) / 180
+    badges.push({
+      xPct: ((cx + R * Math.cos(rad)) / (cx * 2)) * 100,
+      yPct: ((cy + R * Math.sin(rad)) / (cy * 2)) * 100,
+      color: c.color, icon: c.icon, cat: c.cat,
+    })
+    cum += frac
+  })
+  return { segs, badges, C }
+}
+export function Donut({ cats = [], total = 0, size = 200, stroke = 15, badges = true, children, style }) {
+  const th = useTheme()
+  const { segs, badges: bd } = donutGeom(cats, total)
+  return (
+    <div style={{ position: 'relative', width: size, height: size, margin: '0 auto', ...style }}>
+      <svg width={size} height={size} viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="58" fill="none" stroke={th.track} strokeWidth={stroke} />
+        {segs.map((s, i) => (
+          <circle key={i} cx="80" cy="80" r="58" fill="none" stroke={s.color} strokeWidth={stroke}
+            strokeLinecap="round" strokeDasharray={s.dash} transform={s.rot} />
+        ))}
+      </svg>
+      {badges && bd.map((b, i) => (
+        <span key={i} style={{ position: 'absolute', left: `${b.xPct}%`, top: `${b.yPct}%`,
+          transform: 'translate(-50%,-50%)', width: 26, height: 26, borderRadius: '50%',
+          background: th.card, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 1px 4px rgba(0,0,0,.12)', color: b.color }}>
+          <span style={{ width: 14, height: 14, display: 'flex' }}>{b.icon}</span>
+        </span>
+      ))}
+      {children != null && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>{children}</div>
+      )}
+    </div>
+  )
+}
 
-export function Markdown({ text }) {
-  const lines = text.split('\n')
+/* ---------- Category icon tile (rounded, tinted) ---------- */
+export function CatTile({ color, icon, size = 40, radius = 13, dashed = false, style }) {
+  const th = useTheme()
+  return (
+    <span style={{
+      width: size, height: size, flex: 'none', borderRadius: radius,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: dashed ? 'transparent' : tint(color || th.accent, 13),
+      border: dashed ? `1.5px dashed ${th.line}` : 'none',
+      color: dashed ? th.ink3 : (color || th.accent),
+      ...style,
+    }}>
+      <span style={{ width: Math.round(size * 0.5), height: Math.round(size * 0.5), display: 'flex' }}>{icon}</span>
+    </span>
+  )
+}
+
+/* ---------- Pill (status / pace badge) ---------- */
+export function Pill({ children, bg, fg, style }) {
+  return (
+    <span style={{ fontSize: 11, fontWeight: 700, padding: '5px 11px', borderRadius: 999,
+      background: bg, color: fg, whiteSpace: 'nowrap', ...style }}>{children}</span>
+  )
+}
+
+/* ---------- Segmented control (pill track, accent active) ---------- */
+export function Segmented({ options = [], value, onChange, style }) {
+  const th = useTheme()
+  return (
+    <div style={{ display: 'flex', background: th.card2, borderRadius: 999, padding: 4, ...style }}>
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <button key={o.value} onClick={() => onChange(o.value)} style={{
+            flex: 1, border: 'none', borderRadius: 999, padding: '9px 0', cursor: 'pointer',
+            fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
+            background: on ? th.accent : 'transparent', color: on ? th.onAccent : th.ink2,
+            transition: 'background .2s ease, color .2s ease',
+          }}>{o.label}</button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------- Count-up number (animates on mount, respects reduce-motion) ---------- */
+export function CountUp({ value = 0, dp = 0, duration = 900, className, style }) {
+  const [n, setN] = React.useState(() => (prefersReduced() ? value : 0))
+  const from = React.useRef(0)
+  React.useEffect(() => {
+    if (prefersReduced()) { setN(value); return }
+    const start = from.current, delta = value - start, t0 = performance.now()
+    let raf
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / duration)
+      const e = 1 - Math.pow(1 - p, 3) // easeOutCubic
+      setN(start + delta * e)
+      if (p < 1) raf = requestAnimationFrame(tick)
+      else from.current = value
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+  return <span className={className} style={style}>{fmt(n, dp)}</span>
+}
+
+/* ---------- Keela whisper — a quiet one-line nudge in her voice ---------- */
+export function KeelaWhisper({ children, style }) {
+  const th = useTheme()
+  if (!children) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '13px 15px',
+      borderRadius: 18, background: th.accentSoft, ...style }}>
+      <span style={{ marginTop: 4, width: 16, height: 16, flex: 'none', borderRadius: 6,
+        background: th.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Mark size={9} color="#fff" />
+      </span>
+      <span style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: 'italic', color: th.ink2 }}>{children}</span>
+    </div>
+  )
+}
+
+/* ---------- Bottom sheet — rounded, grab handle, animated exit ----------
+   Function-as-child: children receive a `close` that plays the exit animation
+   then calls onClose. Use it after a save so the sheet slides away. */
+export function Sheet({ title, onClose, children, cancelLabel = 'Cancel' }) {
+  const th = useTheme()
+  const [closing, setClosing] = React.useState(false)
+  const close = React.useCallback(() => {
+    if (prefersReduced()) { onClose && onClose(); return }
+    setClosing(true)
+    setTimeout(() => onClose && onClose(), 240)
+  }, [onClose])
+  return (
+    <div className={'k-overlay' + (closing ? ' out' : '')} onClick={close}>
+      <div className="k-sheet kscroll" onClick={(e) => e.stopPropagation()} style={{
+        maxHeight: '88%', overflowY: 'auto', background: th.card,
+        borderRadius: '28px 28px 0 0', padding: '8px 20px calc(18px + env(safe-area-inset-bottom))',
+        boxShadow: '0 -10px 40px rgba(0,0,0,.2)',
+      }}>
+        <div style={{ width: 34, height: 4, borderRadius: 3, background: th.line, margin: '5px auto 10px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: th.ink }}>{title}</span>
+          <button onClick={close} style={{ border: 'none', background: 'none', fontSize: 13, fontWeight: 700,
+            color: th.ink3, cursor: 'pointer', fontFamily: 'inherit' }}>{cancelLabel}</button>
+        </div>
+        {typeof children === 'function' ? children(close) : children}
+      </div>
+    </div>
+  )
+}
+
+/* form input shared by the sheets */
+export function Field({ value, onChange, placeholder, type, inputMode, style, big }) {
+  const th = useTheme()
+  return (
+    <input
+      value={value} onChange={onChange} placeholder={placeholder} type={type} inputMode={inputMode}
+      style={{
+        display: 'block', width: '100%', border: 'none', background: th.card2, borderRadius: 12,
+        padding: '10px 13px', marginTop: 10, fontSize: big ? 26 : 14, fontWeight: big ? 800 : 400,
+        color: th.ink, outline: 'none', fontFamily: 'inherit', ...style,
+      }}
+    />
+  )
+}
+
+/* primary action button used across sheets */
+export function SheetSave({ children, onClick, style }) {
+  const th = useTheme()
+  return (
+    <button onClick={onClick} style={{ width: '100%', border: 'none', borderRadius: 14, padding: 13,
+      background: th.accent, color: th.onAccent, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+      marginTop: 14, fontFamily: 'inherit', ...style }}>{children}</button>
+  )
+}
+export function SheetDelete({ children = 'Delete', onClick }) {
+  const th = useTheme()
+  return (
+    <button onClick={onClick} style={{ width: '100%', border: 'none', borderRadius: 12, padding: 9,
+      background: 'none', color: th.loss, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+      marginTop: 6, fontFamily: 'inherit' }}>{children}</button>
+  )
+}
+
+/* ---------- Full-screen detail push (bucket / asset / note) ---------- */
+export function DetailShell({ onClose, right, children }) {
+  const th = useTheme()
+  return (
+    <div className="k-detail" style={{ background: th.bg }}>
+      <div style={{ flex: 'none', padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
+          background: th.card2, borderRadius: 999, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
+          color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <span style={{ fontSize: 16, lineHeight: 0 }}>‹</span> Back
+        </button>
+        {right || null}
+      </div>
+      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 22px 40px' }}>{children}</div>
+    </div>
+  )
+}
+
+export function Empty({ children, style }) {
+  const th = useTheme()
+  return (
+    <div style={{ textAlign: 'center', padding: '50px 20px', color: th.ink3, fontSize: 13, lineHeight: 1.6, ...style }}>
+      {children}
+    </div>
+  )
+}
+
+/* ---------- Markdown (note bodies) ---------- */
+export function mdBlocks(text) {
+  const strip = (t) => (t || '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
   const out = []
-  let list = null
-  const flush = () => { if (list) { out.push(<ul key={'ul' + out.length}>{list}</ul>); list = null } }
-  let i = 0
-  while (i < lines.length) {
-    const ln = lines[i]
-    // tables
-    if (isRow(ln) && i + 1 < lines.length && isSep(lines[i + 1])) {
-      flush()
-      const header = cells(ln)
-      i += 2
-      const rows = []
-      while (i < lines.length && isRow(lines[i])) { rows.push(cells(lines[i])); i++ }
-      out.push(
-        <div key={'t' + i} style={{ overflowX: 'auto', margin: '4px 0 14px' }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
-            <thead>
-              <tr>{header.map((h, j) => (
-                <th key={j} style={{ textAlign: j ? 'right' : 'left', padding: '6px 8px', borderBottom: '1px solid var(--qahwa-border-strong)', color: 'var(--qahwa-fg-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>{rows.map((r, ri) => (
-              <tr key={ri}>{r.map((c, j) => (
-                <td key={j} style={{ textAlign: j ? 'right' : 'left', padding: '6px 8px', borderBottom: '1px solid var(--qahwa-border)', fontFamily: j ? 'var(--qahwa-font-data)' : 'inherit', color: 'var(--qahwa-fg-1)' }}>{parseInline(c, ri * 20 + j)}</td>
-              ))}</tr>
-            ))}</tbody>
-          </table>
-        </div>,
-      )
-      continue
-    }
-    if (/^#{1,3}\s/.test(ln)) { flush(); out.push(<h3 key={i}>{ln.replace(/^#{1,3}\s+/, '')}</h3>); i++; continue }
-    if (/^---+\s*$/.test(ln)) { flush(); out.push(<div key={i} className="k-divide" style={{ margin: '14px 0' }} />); i++; continue }
-    if (ln.startsWith('- ') || /^\d+\.\s/.test(ln)) {
-      const content = ln.replace(/^(-\s|\d+\.\s)/, '')
-      if (!list) list = []
-      list.push(<li key={i}>{parseInline(content, i)}</li>)
-      i++; continue
-    }
-    if (ln.startsWith('> ')) {
-      flush()
-      out.push(<p key={i} style={{ borderLeft: '1px solid var(--qahwa-accent)', paddingLeft: 12, fontStyle: 'italic', color: 'var(--qahwa-fg-2)' }}>{parseInline(ln.slice(2), i)}</p>)
-      i++; continue
-    }
-    if (ln.trim() === '') { flush(); i++; continue }
-    flush(); out.push(<p key={i}>{parseInline(ln, i)}</p>); i++
+  for (const ln of (text || '').split('\n')) {
+    if (ln.trim() === '') continue
+    if (/^#{1,3}\s/.test(ln)) out.push({ t: 'h', text: strip(ln.replace(/^#{1,3}\s+/, '')) })
+    else if (ln.startsWith('> ')) out.push({ t: 'q', text: strip(ln.slice(2)) })
+    else if (ln.startsWith('- ')) out.push({ t: 'li', text: strip(ln.slice(2)) })
+    else out.push({ t: 'p', text: strip(ln) })
   }
-  flush()
-  return <div className="k-md">{out}</div>
+  return out
+}
+export function Markdown({ text }) {
+  const th = useTheme()
+  return (
+    <div style={{ fontSize: 14, color: th.ink2 }}>
+      {mdBlocks(text).map((b, i) => {
+        if (b.t === 'h') return <div key={i} style={{ fontSize: 15, fontWeight: 800, color: th.ink, margin: '18px 0 8px' }}>{b.text}</div>
+        if (b.t === 'q') return <p key={i} style={{ borderLeft: `3px solid ${th.accent}`, paddingLeft: 13, fontStyle: 'italic', color: th.ink2, margin: '14px 0', lineHeight: 1.6 }}>{b.text}</p>
+        if (b.t === 'li') return <div key={i} style={{ display: 'flex', gap: 9, margin: '6px 0', lineHeight: 1.6 }}><span style={{ color: th.accent }}>•</span><span>{b.text}</span></div>
+        return <p key={i} style={{ margin: '9px 0', lineHeight: 1.65 }}>{b.text}</p>
+      })}
+    </div>
+  )
 }
 
-/* ---------- Tab glyphs (minimal 1px) ---------- */
-export const TabGlyph = {
-  home: <svg className="k-tab-glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M2 13l4-4 3 3 5-6 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-  spend: <svg className="k-tab-glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3 5h14M3 10h14M3 15h9" strokeLinecap="round" /></svg>,
-  buckets: <svg className="k-tab-glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M4 5h12l-1.5 11h-9L4 5z" strokeLinejoin="round" /><path d="M4 9h12" /></svg>,
-  assets: <svg className="k-tab-glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M4 16V9M9 16V4M14 16v-5" strokeLinecap="round" /></svg>,
-  keela: <svg className="k-tab-glyph" viewBox="0 0 20 20" fill="currentColor"><circle cx="6" cy="6" r="1.7" /><circle cx="6" cy="13" r="4" /><circle cx="14" cy="6" r="1.7" /><circle cx="14" cy="13" r="4" /></svg>,
-}
-
-/* ---------- Tiny inline icons (hand-drawn, 1px) ---------- */
+/* ---------- Inline icon set (1.6–1.9px line) ---------- */
+const ico = (d, props = {}) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}><path d={d} /></svg>
+)
 export const Icons = {
-  edit: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11.8 1.9 14.1 4.2 5.3 13l-3 .7.7-3z" />
-      <path d="M10.1 3.6l2.3 2.3" />
+  plus: <span style={{ fontSize: 16, lineHeight: 0 }}>+</span>,
+  chevron: <span style={{ fontSize: 15, lineHeight: 0 }}>›</span>,
+  arrow: <span style={{ fontSize: 15, lineHeight: 0 }}>→</span>,
+  theme: (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="9" cy="9" r="6" /><path d="M9 3a6 6 0 0 0 0 12z" fill="currentColor" stroke="none" />
     </svg>
   ),
-  trash: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2.8 4.3h10.4M6 4.3V2.8h4v1.5M4.6 4.3l.5 8.4a1 1 0 0 0 1 1h3.8a1 1 0 0 0 1-1l.5-8.4" />
-      <path d="M6.7 6.9v4.1M9.3 6.9v4.1" />
+  settings: (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <path d="M3 5.5h6M13 5.5h2" /><circle cx="11" cy="5.5" r="2" /><path d="M3 12.5h2M9 12.5h6" /><circle cx="7" cy="12.5" r="2" />
     </svg>
   ),
-  plus: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-      <path d="M8 3v10M3 8h10" />
+  calendar: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
     </svg>
   ),
-  gear: (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
-      <circle cx="9" cy="9" r="2.5" />
-      <path d="M9 1.5v2.2M9 14.3v2.2M1.5 9h2.2M14.3 9h2.2M3.7 3.7l1.6 1.6M12.7 12.7l1.6 1.6M14.3 3.7l-1.6 1.6M5.3 12.7l-1.6 1.6" />
+  star: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15 9 22 9.3 17 14 18 21 12 17.5 6 21 7 14 2 9.3 9 9" />
     </svg>
   ),
-  sliders: (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
-      <path d="M3 5.5h5.5M13 5.5h2" />
-      <circle cx="10.5" cy="5.5" r="1.9" fill="var(--qahwa-canvas)" />
-      <path d="M3 12.5h2M9.5 12.5h5.5" />
-      <circle cx="7" cy="12.5" r="1.9" fill="var(--qahwa-canvas)" />
+  lock: (
+    <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="4" y="9" width="12" height="8" rx="1.5" /><path d="M6.5 9V6.6a3.5 3.5 0 0 1 7 0V9" />
     </svg>
   ),
-  check: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 8.5l3 3 6-7" />
+  ico,
+}
+
+/* ---------- Bottom tab bar glyphs (filled/stroked per design) ---------- */
+export const TAB_GLYPH = {
+  home: { d: 'M3 8.5 10 3l7 5.5V16a1 1 0 0 1-1 1h-3v-5H7v5H4a1 1 0 0 1-1-1z', fill: 'none', stroke: 'currentColor' },
+  spend: { d: 'M3 5h14M3 10h14M3 15h9', fill: 'none', stroke: 'currentColor' },
+  buckets: { d: 'M4 5h12l-1.5 11h-9z M4 9h12', fill: 'none', stroke: 'currentColor' },
+  assets: { d: 'M4 16V9M9 16V4M14 16v-5', fill: 'none', stroke: 'currentColor' },
+  keela: { d: 'M6 4.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4Z M6 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z M14 4.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4Z M14 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', fill: 'currentColor', stroke: 'none' },
+}
+export function TabGlyph({ name, color }) {
+  const g = TAB_GLYPH[name] || TAB_GLYPH.home
+  return (
+    <svg width="21" height="21" viewBox="0 0 20 20" fill={g.fill === 'currentColor' ? color : 'none'}
+      stroke={g.stroke === 'currentColor' ? color : 'none'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d={g.d} />
     </svg>
-  ),
+  )
+}
+
+/* ---------- Floating quick-add (FAB) ---------- */
+export function Fab({ onClick }) {
+  const th = useTheme()
+  return (
+    <button className="k-fab-in" onClick={onClick} aria-label="Add transaction" style={{
+      position: 'fixed', right: 'var(--k-pad)', zIndex: 76,
+      bottom: 'calc(96px + env(safe-area-inset-bottom))',
+      width: 54, height: 54, borderRadius: '50%', display: 'grid', placeItems: 'center',
+      background: th.accent, border: 'none', color: th.onAccent, cursor: 'pointer',
+      boxShadow: '0 8px 22px -6px rgba(196,98,58,.6)', WebkitAppearance: 'none',
+    }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+    </button>
+  )
 }

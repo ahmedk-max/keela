@@ -7,6 +7,7 @@ import { NOW_MONTH } from './lib/format'
 import { DEMO } from './data/demo'
 import { useAuth } from './auth/AuthContext'
 import { useKeelaData } from './data/useKeelaData'
+import { ThemeContext, themeFor, useTheme } from './lib/theme'
 import { TabGlyph, Fab } from './ui/primitives'
 import { Lock, Loading } from './screens/Lock'
 import { Home } from './screens/Home'
@@ -26,15 +27,32 @@ const TABS = [
   { v: 'keela', label: 'Keela', glyph: 'keela' },
 ] as const
 
+// Floating, blurred pill tab bar. The active tab grows (flex transition) and
+// reveals its label beside the glyph — the design's signature bottom nav.
 function TabBar({ tab, onChange }: { tab: string; onChange: (v: string) => void }) {
+  const th = useTheme()
   return (
-    <nav className="k-tabbar">
-      {TABS.map((t) => (
-        <button key={t.v} className={'k-tab' + (tab === t.v ? ' on' : '')} onClick={() => onChange(t.v)}>
-          {(TabGlyph as Record<string, JSX.Element>)[t.glyph]}
-          <span className="k-tab-lbl">{t.label}</span>
-        </button>
-      ))}
+    <nav style={{
+      position: 'fixed', left: 16, right: 16, zIndex: 75,
+      bottom: 'calc(14px + env(safe-area-inset-bottom))',
+      display: 'flex', alignItems: 'center', gap: 3,
+      background: th.tabbar, border: `1px solid ${th.line}`, borderRadius: 24, padding: 7,
+      boxShadow: '0 12px 34px rgba(30,22,12,.16)',
+      backdropFilter: 'blur(18px) saturate(1.3)', WebkitBackdropFilter: 'blur(18px) saturate(1.3)',
+    }}>
+      {TABS.map((t) => {
+        const on = tab === t.v
+        return (
+          <button key={t.v} onClick={() => onChange(t.v)} style={{
+            flex: on ? 2.3 : 1, border: 'none', background: on ? th.accent : 'transparent', borderRadius: 999,
+            padding: '11px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            cursor: 'pointer', transition: 'flex .28s cubic-bezier(.2,.8,.2,1)',
+          }}>
+            <TabGlyph name={t.glyph} color={on ? '#fff' : th.ink3} />
+            {on && <span style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{t.label}</span>}
+          </button>
+        )
+      })}
     </nav>
   )
 }
@@ -61,7 +79,7 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme)
     document.documentElement.setAttribute('data-density', density)
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1B1510' : '#FAF9F5')
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#16120F' : '#ECE5D6')
   }, [theme, density])
   useEffect(() => { localStorage.setItem('keela.tab', tab) }, [tab])
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [tab])
@@ -308,8 +326,10 @@ export default function App() {
   }
 
   return (
-    <div className="k-root" data-theme={theme} data-density={density}>
-      {content}
-    </div>
+    <ThemeContext.Provider value={themeFor(theme)}>
+      <div className="k-root" data-theme={theme} data-density={density}>
+        {content}
+      </div>
+    </ThemeContext.Provider>
   )
 }

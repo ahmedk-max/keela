@@ -1,7 +1,8 @@
-/* Keela — Buckets analytics: portfolio-level stats, savings composition, and a
-   per-bucket contribution-growth chart. Minimal ECharts, Qahwa palette. */
-import { fmt, fmtDate, monthsBetween, NOW_MONTH } from '../lib/format'
-import { EChart, hexToRgba } from '../ui/echart'
+/* Keela — Buckets analytics: portfolio-level stats + savings composition.
+   Pure helpers shared by the list, the ring cards and the detail page. The
+   balance-over-time chart is now an inline SVG built in the detail view itself
+   (no ECharts in the "Warm" reskin). */
+import { monthsBetween, NOW_MONTH } from '../lib/format'
 
 /* ---------- per-goal helpers (shared with the list + cards) ---------- */
 export function monthsLeft(g) { return Math.max(0, monthsBetween(NOW_MONTH, g.targetDate)) }
@@ -43,69 +44,19 @@ export function bucketStats(goals, profile) {
   }
 }
 
-/* resolve a goal's colour var ('var(--qahwa-espresso)' | '#hex') to a live hex */
-function goalHex(color, c) {
-  if (!color) return c.accent
-  if (color[0] === '#') return color
-  const m = color.match(/--qahwa-([a-z]+)/)
-  return (m && c[m[1]]) || c.accent
-}
-
-/* ---------- Contribution growth (ECharts area) ----------
+/* ---------- Balance over time ----------
    Rebuilds the running balance from the activity log: an opening baseline (what
    was held before the first logged entry) then a step per deposit / withdrawal /
-   spend, with the target drawn as a dashed reference line. */
-export function ContributionChart({ g }) {
+   spend. Returns the value series + opening/now so the detail view can draw the
+   zero-based SVG line (with an optional dashed target reference). */
+export function balanceSeries(g) {
   const balance = goalBalance(g)
   const evs = [...(g.entries || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-  if (!evs.length) return null
-
   const delta = (e) => (e.type === 'deposit' ? e.amount : -e.amount)
   const net = evs.reduce((s, e) => s + delta(e), 0)
   const opening = Math.max(0, Math.round(balance - net))
-
-  const cats = ['Start']
   const vals = [opening]
   let run = opening
-  for (const e of evs) { run += delta(e); cats.push(e.date); vals.push(Math.max(0, Math.round(run))) }
-  const labels = cats.map((cd, i) => (i === 0 ? 'Opening balance' : fmtDate(cd)))
-
-  const peak = Math.max(...vals, g.target)
-  const sig = vals.join(',') + '|' + g.target + '|' + g.color
-  const funded = g.status === 'completed' || balance >= g.target
-
-  const make = (c) => {
-    const color = goalHex(g.color, c)
-    return {
-      animation: true, animationDuration: 600,
-      grid: { left: 1, right: 1, top: 12, bottom: 2 },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'line', lineStyle: { color: c.borderStrong, type: 'dashed' } },
-        backgroundColor: c.canvas, borderColor: c.borderStrong, borderWidth: 1, padding: [6, 9],
-        textStyle: { color: c.fg1, fontSize: 11 },
-        extraCssText: 'border-radius:0;box-shadow:0 2px 10px rgba(28,22,17,0.14);',
-        formatter: (ps) => {
-          const i = ps[0].dataIndex
-          return `<span style="color:${c.fg3};font-size:10px;letter-spacing:.04em">${labels[i]}</span><br/><b>${fmt(ps[0].value)}</b> <span style="color:${c.fg3}">SAR</span>`
-        },
-      },
-      xAxis: { type: 'category', show: false, boundaryGap: false, data: labels },
-      yAxis: { type: 'value', show: false, min: 0, max: peak * 1.08 },
-      series: [{
-        type: 'line', data: vals, smooth: false, showSymbol: false, silent: false,
-        lineStyle: { color, width: 1.75 },
-        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
-          { offset: 0, color: hexToRgba(color, 0.2) }, { offset: 1, color: hexToRgba(color, 0) },
-        ] } },
-        markLine: g.target > 0 && !funded ? {
-          silent: true, symbol: 'none', data: [{ yAxis: g.target }],
-          lineStyle: { color: c.borderStrong, width: 1, type: 'dashed' },
-          label: { show: true, position: 'insideEndTop', formatter: 'Target',
-            color: c.fg3, fontSize: 9, letterSpacing: 0.04 },
-        } : undefined,
-      }],
-    }
-  }
-  return <EChart make={make} sig={sig} height={120} ariaLabel="Contribution growth" />
+  for (const e of evs) { run += delta(e); vals.push(Math.max(0, Math.round(run))) }
+  return { vals, opening, now: Math.round(balance) }
 }

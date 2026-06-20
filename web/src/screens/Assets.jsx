@@ -1,72 +1,85 @@
 /* Keela — Assets: portfolios → holdings → activity. Cost-basis only (SAR, no
    live prices / no P/L). A portfolio carries a savings-style goal; its holdings
-   are cash or positions (units + avg cost), grown/shrunk by buy/sell/deposit/withdraw. */
+   are cash or positions (units + avg cost), grown/shrunk by buy/sell/deposit/
+   withdraw. "Warm" reskin: dark espresso hero, allocation bar + legend, rounded
+   portfolio cards, SVG Sparkline balance card on the holding detail. */
 import React from 'react'
-import { Tag, Badge, CountUp, Progress, Empty, Segmented, Sheet, SwipeRow, Icons } from '../ui/primitives'
-import { getEntry } from '../lib/icons'
-import { TrendChart } from '../ui/echart'
+import { useTheme, SWATCHES, tint } from '../lib/theme'
+import {
+  CountUp, Sparkline, StackedBar, Progress, Pill, Segmented, Empty, DetailShell,
+  Sheet, Field, SheetSave, SheetDelete,
+} from '../ui/primitives'
+import { entryMeta } from '../lib/icons'
 import { fmt, fmtDate, MONTH_ABBR } from '../lib/format'
-import { pfProgress, pfMonthlyNeeded, HoldingChart } from './assets-extras'
+import { pfProgress, pfMonthlyNeeded, holdingSeries } from './assets-extras'
 
 const TODAY = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
 const fmtMonth = (d) => { const [y, m] = (d || '').split('-').map(Number); return m ? MONTH_ABBR[m - 1] + ' ' + y : '' }
+const unitsStr = (u) => fmt(u, u % 1 ? 4 : 0)
 
-const ASSET_COLORS = [
-  'var(--qahwa-brewed)', 'var(--qahwa-latte)', 'var(--qahwa-espresso)', 'var(--qahwa-accent)',
-  '#DDA12B', '#C0453C', '#C75D88', '#6C5AA6', '#3C6CA6', '#2E8B8B', '#4E8C50', 'var(--qahwa-flat)',
-]
+/* subtitle for a holding (units · avg cost, or Cash) */
+const holdSub = (h) => h.kind === 'cash'
+  ? 'Cash'
+  : (h.units != null ? `${unitsStr(h.units)} units · avg ${fmt(h.avgCost || 0)}` : (h.cat || 'Position'))
 
-// activity row styling — buy/sell move a position, deposit/withdraw move cash
-const ACT = {
-  buy: { label: 'Buy', sign: '+', cls: '', icon: getEntry('update') },
-  sell: { label: 'Sell', sign: '−', cls: 'k-loss', icon: getEntry('withdrawal') },
-  deposit: { label: 'Deposit', sign: '+', cls: 'k-gain', icon: getEntry('deposit') },
-  withdraw: { label: 'Withdraw', sign: '−', cls: 'k-loss', icon: getEntry('withdrawal') },
-}
-
-/* ---------- holding row (inside a portfolio) ---------- */
-function HoldingRow({ h, onOpen, onEdit, onDelete }) {
-  const sub = h.kind === 'cash'
-    ? 'Cash'
-    : (h.units != null ? `${fmt(h.units, h.units % 1 ? 4 : 0)} units · avg ${fmt(h.avgCost || 0)}` : h.cat)
+/* ---------- shared section divider header (mirrors Home.jsx) ---------- */
+function SecHead({ th, label, sub, action, onAction }) {
   return (
-    <SwipeRow actions={[
-      { label: 'Edit', icon: Icons.edit, onClick: onEdit },
-      { label: 'Delete', kind: 'del', icon: Icons.trash, onClick: onDelete },
-    ]}>
-      <button className="k-row btn" onClick={onOpen}>
-        <span className="k-swatch" style={{ width: 12, height: 12, background: h.color }} />
-        <div className="k-row-main">
-          <span className="k-row-name">{h.name}</span>
-          <span className="k-row-sub k-hold-units">{sub}</span>
-        </div>
-        <div className="k-row-r"><span className="k-row-amt">{fmt(h.current)}</span></div>
-      </button>
-    </SwipeRow>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>{label}</span>
+      {onAction
+        ? <button onClick={onAction} style={{ border: 'none', background: 'none', fontSize: 12, fontWeight: 700, color: th.accent, cursor: 'pointer', fontFamily: 'inherit' }}>{action}</button>
+        : sub ? <span style={{ fontSize: 12, color: th.ink2 }}>{sub}</span> : null}
+    </div>
   )
 }
 
-/* ---------- portfolio card (list on the Assets tab) ---------- */
-function PortfolioCard({ p, onClick }) {
+/* ---------- allocation: stacked bar + legend over items {id,name,current,color} ---------- */
+function Allocation({ th, items, total, label, sub }) {
+  if (!items.length || total <= 0) return null
+  const sorted = [...items].sort((a, b) => b.current - a.current)
+  return (
+    <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+      <SecHead th={th} label={label} sub={sub} />
+      <StackedBar height={14} segs={sorted.map((a) => ({ w: (a.current / total) * 100, color: a.color }))} style={{ marginBottom: 16 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {sorted.map((a) => (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: a.color, flex: 'none' }} />
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
+            <span style={{ fontSize: 11, color: th.ink3, marginRight: 10 }}>{fmt((a.current / total) * 100, 1)}%</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: th.ink }}>{fmt(a.current)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- portfolio card (Assets tab list) ---------- */
+function PortfolioCard({ th, p, onClick }) {
   const pct = pfProgress(p)
   const funded = p.target > 0 && p.value >= p.target
   return (
-    <button className="k-pfcard" onClick={onClick}>
-      <div className="k-pfcard-top">
-        <span className="k-swatch" style={{ width: 11, height: 11, background: p.color }} />
-        <span className="k-pfcard-name">{p.name}</span>
-        <span className="k-pfcard-count">{p.count} holding{p.count === 1 ? '' : 's'}</span>
+    <button onClick={onClick} style={{
+      display: 'block', width: '100%', textAlign: 'left', background: th.card, border: 'none',
+      borderRadius: 22, padding: 18, cursor: 'pointer', boxShadow: th.shadow, fontFamily: 'inherit',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ width: 11, height: 11, borderRadius: 4, background: p.color, flex: 'none' }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 700, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+        <span style={{ fontSize: 11.5, color: th.ink3 }}>{p.count} holding{p.count === 1 ? '' : 's'}</span>
       </div>
-      <div>
-        <span className="k-pfcard-val">{fmt(p.value)}</span>
-        {p.target > 0 && <span className="k-pfcard-sub">of {fmt(p.target)}</span>}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+        <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{fmt(p.value)}</span>
+        {p.target > 0 && <span style={{ fontSize: 12, color: th.ink3 }}>of {fmt(p.target)}</span>}
       </div>
       {p.target > 0 && (
         <>
-          <Progress pct={pct} color={p.color} />
-          <div className="k-pfcard-meta">
-            <span className="k-label dim">{pct}% to goal</span>
-            <span className="k-label dim">{funded ? 'Funded' : fmt(pfMonthlyNeeded(p)) + '/mo · ' + fmtMonth(p.targetDate)}</span>
+          <div style={{ marginTop: 14 }}><Progress pct={pct} color={p.color} height={8} /></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9, fontSize: 11.5, color: th.ink3 }}>
+            <span>{pct}% to goal</span>
+            <span>{funded ? 'Funded' : `${fmt(pfMonthlyNeeded(p))}/mo · ${fmtMonth(p.targetDate)}`}</span>
           </div>
         </>
       )}
@@ -74,181 +87,169 @@ function PortfolioCard({ p, onClick }) {
   )
 }
 
-/* ---------- shared: allocation bar + legend over a set of items {name,current,color} ---------- */
-function Allocation({ items, total, label, sub }) {
-  if (!items.length || total <= 0) return null
-  const sorted = [...items].sort((a, b) => b.current - a.current)
+export function Assets({ data, nav }) {
+  const th = useTheme()
+  const portfolios = data.portfolios || []
+  const holdings = data.assets || []
+  const total = holdings.reduce((s, h) => s + h.current, 0)
+  // cost-basis only: nothing is "invested vs current" — invested == balance.
+  const pfItems = portfolios.map((p) => ({ id: p.id, name: p.name, current: p.value, color: p.color }))
+
+  const dim = 'rgba(243,238,227,.55)'
+
   return (
-    <div className="k-sec">
-      <div className="k-sec-head"><span className="k-label">{label}</span><span className="k-micro">{sub}</span></div>
-      <div className="k-alloc">
-        {sorted.map((a) => (
-          <div key={a.id} className="k-alloc-seg" title={a.name} style={{ width: (a.current / total * 100) + '%', background: a.color }} />
-        ))}
-      </div>
-      <div className="k-legend">
-        {sorted.map((a) => (
-          <div className="k-legend-row" key={a.id}>
-            <span className="k-swatch" style={{ background: a.color }} />
-            <span style={{ flex: 1, font: '500 12px/1.2 var(--qahwa-font-ui)' }}>{a.name}</span>
-            <span className="k-num" style={{ fontSize: 11, color: 'var(--qahwa-fg-3)', marginRight: 12 }}>{(a.current / total * 100).toFixed(1)}%</span>
-            <span className="k-num" style={{ fontSize: 12, fontWeight: 500, minWidth: 56, textAlign: 'right' }}>{fmt(a.current)}</span>
+    <div className="k-screen">
+      <div style={{ padding: '0 20px' }}>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+          <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>Assets</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: th.ink3, textAlign: 'right', lineHeight: 1.5 }}>
+            {portfolios.length} portfolio{portfolios.length === 1 ? '' : 's'}<br />{holdings.length} holding{holdings.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        {/* HERO — Portfolio · SAR */}
+        <div style={{ background: th.darkcard, borderRadius: 28, padding: '24px 22px', color: th.onDark, boxShadow: th.shadow }}>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: dim }}>Portfolio · SAR</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
+            <CountUp value={total} style={{ fontSize: 42, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: th.onDark }} />
           </div>
-        ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 12.5 }}>
+            <span style={{ color: dim }}>{holdings.length} holding{holdings.length === 1 ? '' : 's'}</span>
+            <span style={{ color: 'rgba(243,238,227,.3)' }}>·</span>
+            <span style={{ color: dim }}>{portfolios.length} portfolio{portfolios.length === 1 ? '' : 's'} · cost basis</span>
+          </div>
+        </div>
+
+        {/* ALLOCATION */}
+        <Allocation th={th} items={pfItems} total={total}
+          label="Allocation" sub={`${portfolios.length} portfolio${portfolios.length === 1 ? '' : 's'}`} />
+
+        {/* PORTFOLIOS */}
+        <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+          <SecHead th={th} label="Portfolios" action="+ New" onAction={() => nav.addPortfolio()} />
+          {portfolios.length
+            ? <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {portfolios.map((p) => <PortfolioCard key={p.id} th={th} p={p} onClick={() => nav.openPortfolio(p.id)} />)}
+              </div>
+            : <Empty>No portfolios yet. Create one to start tracking what you hold.</Empty>}
+        </div>
       </div>
     </div>
   )
 }
 
-export function Assets({ data, nav }) {
-  const portfolios = data.portfolios || []
-  const holdings = data.assets || []
-  const total = holdings.reduce((s, h) => s + h.current, 0)
-  // net-worth trend (assets + savings) from monthly snapshots
-  const nwSeries = (data.snapshots || []).map((s) => s.netWorth)
-  const nwUp = nwSeries.length > 1 && nwSeries[nwSeries.length - 1] >= nwSeries[0]
-  // allocation across portfolios (each portfolio is one segment)
-  const pfItems = portfolios.map((p) => ({ id: p.id, name: p.name, current: p.value, color: p.color }))
-
+/* ---------- holding row (inside a portfolio) ---------- */
+function HoldingRow({ th, h, onOpen }) {
   return (
-    <div className="k-screen">
-      <div className="k-phead">
-        <div><div className="k-htitle">Portfolios</div></div>
-        <div className="k-asof">{portfolios.length} portfolio{portfolios.length === 1 ? '' : 's'}<br />{holdings.length} holdings</div>
-      </div>
-
-      <div className="k-hero" style={{ paddingTop: 8 }}>
-        <span className="k-label" style={{ display: 'block', marginBottom: 10 }}>Invested &middot; SAR</span>
-        <div className="k-hero-num" style={{ fontSize: 44 }}><CountUp value={total} /></div>
-        <div className="k-hero-delta">
-          <span className="k-num k-flat">{holdings.length} holding{holdings.length === 1 ? '' : 's'} across {portfolios.length} portfolio{portfolios.length === 1 ? '' : 's'}</span>
-        </div>
-      </div>
-
-      {nwSeries.length > 1 && (
-        <div className="k-sec">
-          <div className="k-sec-head"><span className="k-label">Net worth &middot; trend</span><span className="k-micro">{nwSeries.length} mo &middot; incl. savings</span></div>
-          <TrendChart values={nwSeries} height={56} tone={nwUp ? 'gain' : 'loss'} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span className="k-micro k-num">{fmt(nwSeries[0])}</span>
-            <span className="k-micro">last {nwSeries.length} months</span>
-            <span className="k-micro k-num">{fmt(nwSeries[nwSeries.length - 1])}</span>
-          </div>
-        </div>
-      )}
-
-      <Allocation items={pfItems} total={total} label="Allocation" sub={`${portfolios.length} portfolio${portfolios.length === 1 ? '' : 's'}`} />
-
-      <div className="k-sec div" style={{ paddingBottom: 0 }}>
-        <div className="k-sec-head" style={{ marginBottom: 0 }}>
-          <span className="k-label">Portfolios</span>
-          <button className="k-back" style={{ padding: 0 }} onClick={() => nav.addPortfolio()}>+ New</button>
-        </div>
-      </div>
-      <div className="k-sec" style={{ marginTop: 0 }}>
-        {portfolios.length
-          ? <div className="k-pflist">{portfolios.map((p) => <PortfolioCard key={p.id} p={p} onClick={() => nav.openPortfolio(p.id)} />)}</div>
-          : <Empty>No portfolios yet. Create one to start tracking what you hold.</Empty>}
-      </div>
-    </div>
+    <button onClick={onOpen} style={{
+      display: 'flex', alignItems: 'center', gap: 13, width: '100%', textAlign: 'left',
+      border: 'none', background: 'none', padding: '14px 0', borderBottom: `1px solid ${th.line}`,
+      cursor: 'pointer', fontFamily: 'inherit',
+    }}>
+      <span style={{ width: 12, height: 12, borderRadius: 4, background: h.color, flex: 'none' }} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</span>
+        <span style={{ display: 'block', fontSize: 11.5, color: th.ink3 }}>{holdSub(h)}</span>
+      </span>
+      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: th.ink, flex: 'none' }}>{fmt(h.current)}</span>
+    </button>
   )
 }
 
 /* ---------- Portfolio detail ---------- */
 export function PortfolioDetail({ p, onClose, onEdit, onAddHolding, onOpenHolding, onEditHolding, onDeleteHolding }) {
+  const th = useTheme()
   const pct = pfProgress(p)
   const funded = p.target > 0 && p.value >= p.target
   const remaining = Math.max(0, (p.target || 0) - p.value)
   const holdings = [...p.holdings].sort((a, b) => b.current - a.current)
+  const allocItems = holdings.map((h) => ({ id: h.id, name: h.name, current: h.current, color: h.color }))
+
+  const editBtn = !p.isDefault && (
+    <button onClick={() => onEdit(p.id)} style={{ border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px', fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+  )
 
   return (
-    <div className="k-detail">
-      <div className="k-detail-bar">
-        <button className="k-back" onClick={onClose}>&lsaquo; Portfolios</button>
-        {!p.isDefault && <button className="k-back" style={{ marginLeft: 'auto' }} onClick={() => onEdit(p.id)}>Edit</button>}
+    <DetailShell onClose={onClose} right={editBtn}>
+      {/* header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ width: 13, height: 13, borderRadius: 4, background: p.color, flex: 'none' }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 18, fontWeight: 800, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+        {p.isDefault && <Pill bg={th.card2} fg={th.ink2}>Unsorted</Pill>}
       </div>
-      <div className="k-scroll">
-        <div className="k-screen">
-          <div className="k-hero" style={{ paddingTop: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span className="k-swatch" style={{ width: 12, height: 12, background: p.color }} />
-              <span style={{ font: '600 18px/1.1 var(--qahwa-font-ui)', flex: 1 }}>{p.name}</span>
-              {p.isDefault && <Tag kind="mute">Unsorted</Tag>}
-            </div>
-            <div className="k-hero-num" style={{ fontSize: 38 }}>{fmt(p.value)}</div>
-            {p.target > 0 ? (
-              <>
-                <div className="k-hero-delta"><span className="k-num" style={{ color: 'var(--qahwa-fg-3)' }}>of {fmt(p.target)} SAR &middot; {pct}%</span></div>
-                <div style={{ marginTop: 16 }}><Progress pct={pct} color={p.color} /></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                  <span className="k-label dim">{remaining > 0 ? fmt(remaining) + ' to go' : 'Goal reached'}</span>
-                  <span className="k-label dim">Target {fmtMonth(p.targetDate)}</span>
-                </div>
-              </>
-            ) : (
-              <div className="k-hero-delta"><span className="k-num k-flat">{p.count} holding{p.count === 1 ? '' : 's'}</span></div>
-            )}
+      <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{fmt(p.value)}</div>
+
+      {p.target > 0 ? (
+        <>
+          <div style={{ marginTop: 6, fontSize: 13, color: th.ink3 }}>of {fmt(p.target)} SAR · {pct}%</div>
+          <div style={{ marginTop: 16 }}><Progress pct={pct} color={p.color} /></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9, fontSize: 12, color: th.ink2 }}>
+            <span>{remaining > 0 ? `${fmt(remaining)} to go` : 'Goal reached'}</span>
+            <span>Target {fmtMonth(p.targetDate)}</span>
           </div>
+        </>
+      ) : (
+        <div style={{ marginTop: 6, fontSize: 13, color: th.ink3 }}>{p.count} holding{p.count === 1 ? '' : 's'}</div>
+      )}
 
-          {p.target > 0 && (
-            <div className="k-sec" style={{ marginTop: 20 }}>
-              <div className="k-stats">
-                <div className="k-stat"><span className="k-label dim">Invested</span><span className="k-stat-val">{fmt(p.value)}</span></div>
-                <div className="k-stat"><span className="k-label dim">Target</span><span className="k-stat-val" style={{ color: 'var(--qahwa-fg-2)' }}>{fmt(p.target)}</span></div>
-                <div className="k-stat"><span className="k-label dim">{funded ? 'Status' : 'Contribute / mo'}</span><span className="k-stat-val k-em">{funded ? 'Funded' : fmt(pfMonthlyNeeded(p))}</span></div>
-                <div className="k-stat"><span className="k-label dim">Holdings</span><span className="k-stat-val">{p.count}</span></div>
-              </div>
+      {/* stats */}
+      {p.target > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: th.card, borderRadius: 22, padding: 18, marginTop: 18, boxShadow: th.shadow }}>
+          {[
+            { l: 'Invested', v: fmt(p.value), c: th.ink },
+            { l: 'Target', v: fmt(p.target), c: th.ink2 },
+            { l: funded ? 'Status' : 'Contribute / mo', v: funded ? 'Funded' : fmt(pfMonthlyNeeded(p)), c: funded ? th.gain : th.accent },
+            { l: 'Holdings', v: String(p.count), c: th.ink },
+          ].map((s, i) => (
+            <div key={i}>
+              <div style={{ fontSize: 11, color: th.ink3 }}>{s.l}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: s.c, marginTop: 3 }}>{s.v}</div>
             </div>
-          )}
-
-          {p.note && (
-            <div className="k-sec"><div className="k-knote" style={{ borderLeftColor: 'var(--qahwa-border)' }}>
-              <div className="k-knote-body" style={{ fontSize: 13 }}>{p.note}</div>
-            </div></div>
-          )}
-
-          <Allocation items={holdings} total={p.value} label="Allocation" sub={`${p.count} holding${p.count === 1 ? '' : 's'}`} />
-
-          <div className="k-sec div" style={{ paddingBottom: 0 }}>
-            <div className="k-sec-head" style={{ marginBottom: 0 }}>
-              <span className="k-label">Holdings</span>
-              <button className="k-back" style={{ padding: 0 }} onClick={onAddHolding}>+ Add</button>
-            </div>
-          </div>
-          <div className="k-sec" style={{ marginTop: 0 }}>
-            {holdings.length
-              ? holdings.map((h) => (
-                <HoldingRow key={h.id} h={h}
-                  onOpen={() => onOpenHolding(h.id)}
-                  onEdit={() => onEditHolding(h)}
-                  onDelete={() => onDeleteHolding(h.id)} />
-              ))
-              : <Empty>No holdings yet. Add cash or a position to this portfolio.</Empty>}
-          </div>
+          ))}
         </div>
+      )}
+
+      {/* note */}
+      {p.note && (
+        <div style={{ marginTop: 14, borderLeft: `3px solid ${th.line}`, paddingLeft: 13, fontSize: 13, lineHeight: 1.55, color: th.ink2 }}>{p.note}</div>
+      )}
+
+      {/* allocation */}
+      <Allocation th={th} items={allocItems} total={p.value}
+        label="Allocation" sub={`${p.count} holding${p.count === 1 ? '' : 's'}`} />
+
+      {/* holdings */}
+      <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+        <SecHead th={th} label="Holdings" action="+ Add" onAction={onAddHolding} />
+        {holdings.length
+          ? holdings.map((h) => <HoldingRow key={h.id} th={th} h={h} onOpen={() => onOpenHolding(h.id)} />)
+          : <Empty>No holdings yet. Add cash or a position to this portfolio.</Empty>}
       </div>
-    </div>
+    </DetailShell>
   )
 }
 
 /* ---------- Holding detail ---------- */
-function ActivityLog({ entries }) {
+function ActivityList({ th, entries }) {
   return (
-    <div className="k-sec">
-      <div className="k-sec-head"><span className="k-label">Activity</span><span className="k-micro">{entries.length}</span></div>
+    <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+      <SecHead th={th} label="Activity" sub={String(entries.length)} />
       {entries.length ? entries.map((e, i) => {
-        const m = ACT[e.type] || { label: e.type, sign: '', cls: '', icon: getEntry('update') }
+        const m = entryMeta(e.type, th)
         const sub = (e.units != null && e.price != null)
-          ? `${fmt(e.units, e.units % 1 ? 4 : 0)} @ ${fmt(e.price)}${e.note ? ' · ' + e.note : ''}`
-          : (e.note || fmtDate(e.date))
+          ? `${unitsStr(e.units)} @ ${fmt(e.price)}${e.note ? ' · ' + e.note : ''}`
+          : (e.note ? `${fmtDate(e.date)} · ${e.note}` : fmtDate(e.date))
         return (
-          <div className="k-row" key={i}>
-            <Badge icon={m.icon.icon} color={m.icon.color} />
-            <div className="k-row-main">
-              <span className="k-row-name">{m.label}<span className="k-micro" style={{ marginLeft: 8 }}>{fmtDate(e.date)}</span></span>
-              <span className="k-row-sub">{sub}</span>
-            </div>
-            <div className="k-row-r"><span className={'k-row-amt ' + m.cls}>{m.sign}{fmt(e.amount)}</span></div>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 0', borderBottom: `1px solid ${th.line}` }}>
+            <span style={{ width: 36, height: 36, flex: 'none', borderRadius: 11, background: tint(m.color, 13), color: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: 18, height: 18, display: 'flex' }}>{m.icon}</span>
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: th.ink }}>{m.label}<span style={{ fontSize: 11, fontWeight: 400, color: th.ink3, marginLeft: 8 }}>{fmtDate(e.date)}</span></span>
+              <span style={{ display: 'block', fontSize: 11.5, color: th.ink3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
+            </span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: m.sign === '−' ? th.loss : m.sign === '+' ? th.gain : th.ink, flex: 'none' }}>{m.sign}{fmt(e.amount)}</span>
           </div>
         )
       }) : <Empty>No activity yet.</Empty>}
@@ -257,117 +258,132 @@ function ActivityLog({ entries }) {
 }
 
 export function HoldingDetail({ h, portfolio, onClose, onEdit, onAct }) {
+  const th = useTheme()
   const isCash = h.kind === 'cash'
   const weight = portfolio.value > 0 ? (h.current / portfolio.value * 100) : 0
   const hasBalance = h.current > 0
+  const series = holdingSeries(h)
+  const entries = [...h.entries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+  const editBtn = (
+    <button onClick={onEdit} style={{ border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px', fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+  )
+
   return (
-    <div className="k-detail">
-      <div className="k-detail-bar">
-        <button className="k-back" onClick={onClose}>&lsaquo; {portfolio.name}</button>
-        <button className="k-back" style={{ marginLeft: 'auto' }} onClick={onEdit}>Edit</button>
+    <DetailShell onClose={onClose} right={editBtn}>
+      {/* header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ width: 13, height: 13, borderRadius: 4, background: h.color, flex: 'none' }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 18, fontWeight: 800, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</span>
+        <Pill bg={th.card2} fg={th.ink2}>{isCash ? 'Cash' : (h.cat || 'Position')}</Pill>
       </div>
-      <div className="k-scroll">
-        <div className="k-screen">
-          <div className="k-hero" style={{ paddingTop: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span className="k-swatch" style={{ width: 12, height: 12, background: h.color }} />
-              <span style={{ font: '600 16px/1.15 var(--qahwa-font-ui)', flex: 1 }}>{h.name}</span>
-              <Tag kind="mute">{isCash ? 'Cash' : h.cat}</Tag>
-            </div>
-            <div className="k-hero-num" style={{ fontSize: 40 }}>{fmt(h.current)}</div>
-            <div className="k-hero-delta">
-              {isCash
-                ? <span className="k-num k-flat">cash balance</span>
-                : <span className="k-num k-flat">{h.units != null ? `${fmt(h.units, h.units % 1 ? 4 : 0)} units · avg ${fmt(h.avgCost || 0)}` : 'cost basis'}</span>}
-            </div>
+      <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{fmt(h.current)}</div>
+      <div style={{ marginTop: 6, fontSize: 13, color: th.ink3 }}>
+        {isCash ? 'cash balance' : (h.units != null ? `${unitsStr(h.units)} units · avg ${fmt(h.avgCost || 0)}` : 'cost basis')}
+      </div>
+
+      {/* balance sparkline card */}
+      {series.length > 1 && (
+        <div style={{ background: th.card, borderRadius: 22, padding: 18, marginTop: 18, boxShadow: th.shadow }}>
+          <Sparkline values={series} w={320} h={60} height={60} color={h.color} fillOpacity={0.12} strokeWidth={2} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: th.ink3 }}>
+            <span>{fmt(series[0])}</span>
+            <span>balance history</span>
+            <span>{fmt(series[series.length - 1])}</span>
           </div>
-
-          <div className="k-sec" style={{ marginTop: 18 }}>
-            <div className="k-stats">
-              <div className="k-stat"><span className="k-label dim">Invested</span><span className="k-stat-val">{fmt(h.costBasis)}</span></div>
-              <div className="k-stat"><span className="k-label dim">{isCash ? 'Type' : 'Units'}</span><span className="k-stat-val">{isCash ? 'Cash' : (h.units != null ? fmt(h.units, h.units % 1 ? 4 : 0) : '—')}</span></div>
-              <div className="k-stat"><span className="k-label dim">Avg cost</span><span className="k-stat-val">{!isCash && h.avgCost ? fmt(h.avgCost) : '—'}</span></div>
-              <div className="k-stat"><span className="k-label dim">Weight</span><span className="k-stat-val">{weight.toFixed(0)}%</span></div>
-            </div>
-          </div>
-
-          <div className="k-sec"><div style={{ display: 'flex', gap: 10 }}>
-            <button className="k-btn accent" style={{ flex: 1 }} onClick={() => onAct(isCash ? 'deposit' : 'buy')}>+ {isCash ? 'DEPOSIT' : 'BUY'}</button>
-            <button className="k-btn" style={{ flex: 1, opacity: hasBalance ? 1 : 0.4, pointerEvents: hasBalance ? 'auto' : 'none' }}
-              onClick={() => onAct(isCash ? 'withdraw' : 'sell')}>&minus; {isCash ? 'WITHDRAW' : 'SELL'}</button>
-          </div></div>
-
-          {h.entries.length > 1 && (
-            <div className="k-sec" style={{ marginTop: 24 }}>
-              <div className="k-sec-head"><span className="k-label">Cost basis over time</span><span className="k-micro">{h.entries.length} entries</span></div>
-              <HoldingChart h={h} />
-            </div>
-          )}
-
-          <ActivityLog entries={h.entries} />
         </div>
+      )}
+
+      {/* 2-col stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: th.card, borderRadius: 22, padding: 18, marginTop: 14, boxShadow: th.shadow }}>
+        {[
+          { l: 'Invested', v: fmt(h.costBasis), c: th.ink },
+          { l: 'Current', v: fmt(h.current), c: th.ink },
+          { l: isCash ? 'Type' : 'Units', v: isCash ? 'Cash' : (h.units != null ? unitsStr(h.units) : '—'), c: th.ink },
+          { l: isCash ? 'Weight' : 'Avg cost', v: isCash ? `${weight.toFixed(0)}%` : (h.avgCost ? fmt(h.avgCost) : '—'), c: th.ink2 },
+        ].map((s, i) => (
+          <div key={i}>
+            <div style={{ fontSize: 11, color: th.ink3 }}>{s.l}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: s.c, marginTop: 3 }}>{s.v}</div>
+          </div>
+        ))}
       </div>
-    </div>
+
+      {/* action buttons: Edit + buy/sell or deposit/withdraw */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <button onClick={() => onAct(isCash ? 'deposit' : 'buy')} style={{
+          flex: 1, border: 'none', borderRadius: 14, padding: 13, background: th.accent, color: th.onAccent,
+          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        }}>+ {isCash ? 'DEPOSIT' : 'BUY'}</button>
+        <button onClick={() => hasBalance && onAct(isCash ? 'withdraw' : 'sell')} style={{
+          flex: 1, border: `1px solid ${th.line}`, borderRadius: 14, padding: 13, background: th.card, color: th.ink2,
+          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          opacity: hasBalance ? 1 : 0.4, pointerEvents: hasBalance ? 'auto' : 'none',
+        }}>− {isCash ? 'WITHDRAW' : 'SELL'}</button>
+      </div>
+
+      <ActivityList th={th} entries={entries} />
+    </DetailShell>
   )
 }
 
 /* ---------- Sheets ---------- */
-function ColourRow({ value, onChange, palette }) {
+function ColourSwatches({ th, value, onChange, palette = SWATCHES }) {
   const colors = value && !palette.includes(value) ? [value, ...palette] : palette
   return (
-    <div className="k-field">
-      <span className="k-label dim">Colour</span>
-      <div className="k-swatchrow">
+    <>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3, margin: '16px 2px 8px' }}>Colour</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
         {colors.map((c) => (
-          <button key={c} type="button" aria-label="colour"
-            className={'k-swatchbtn' + (value === c ? ' on' : '')}
-            style={{ background: c }} onClick={() => onChange(c)} />
+          <button key={c} type="button" aria-label="colour" onClick={() => onChange(c)} style={{
+            width: 30, height: 30, borderRadius: '50%', background: c, cursor: 'pointer',
+            border: value === c ? `2.5px solid ${th.ink}` : `2.5px solid transparent`,
+            boxShadow: value === c ? `0 0 0 2px ${th.card}` : 'none',
+          }} />
         ))}
       </div>
-    </div>
+    </>
   )
 }
 
+const lbl = (th) => ({ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3, margin: '16px 2px 8px' })
+
 export function PortfolioSheet({ portfolio, onClose, onSave, onDelete }) {
+  const th = useTheme()
   const editing = !!portfolio
   const [name, setName] = React.useState(portfolio?.name || '')
   const [target, setTarget] = React.useState(portfolio ? String(portfolio.target || '') : '')
   const [tdate, setTdate] = React.useState(portfolio?.targetDate || '')
-  const [color, setColor] = React.useState(portfolio?.color || ASSET_COLORS[0])
+  const [color, setColor] = React.useState(portfolio?.color || SWATCHES[0])
   const [note, setNote] = React.useState(portfolio?.note || '')
   const valid = name.trim()
+
   return (
     <Sheet title={editing ? 'Edit · ' + portfolio.name : 'New portfolio'} onClose={onClose}>
       {(close) => (
         <>
-          <div className="k-field" style={{ marginTop: 14 }}>
-            <span className="k-label dim">Name</span>
-            <input className="k-input" placeholder="e.g. Long-term" value={name} onChange={(e) => setName(e.target.value)} data-autofocus />
-          </div>
-          <ColourRow value={color} onChange={setColor} palette={ASSET_COLORS} />
-          <div className="k-field">
-            <span className="k-label dim">Goal &middot; SAR &middot; optional</span>
-            <input className="k-input k-num" inputMode="numeric" placeholder="0" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} />
-          </div>
-          <div className="k-field">
-            <span className="k-label dim">Target month &middot; optional</span>
-            <input className="k-input k-num" type="month" value={tdate} onChange={(e) => setTdate(e.target.value)} />
-          </div>
-          <div className="k-field">
-            <span className="k-label dim">Note &middot; optional</span>
-            <textarea className="k-input" rows={2} placeholder="What's this portfolio for?" value={note}
-              style={{ resize: 'none', lineHeight: 1.4 }} onChange={(e) => setNote(e.target.value)} />
-          </div>
-          <button className="k-btn accent full" style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
-            onClick={() => { if (valid) { onSave(portfolio?.id, { name: name.trim(), target: parseInt(target, 10) || 0, targetDate: tdate || '', color, note: note.trim() }); close() } }}>
-            {editing ? 'SAVE CHANGES' : 'CREATE PORTFOLIO'}
-          </button>
-          {editing && (
-            <button className="k-btn ghost full" style={{ marginTop: 10, color: 'var(--qahwa-loss)', borderColor: 'var(--qahwa-loss)' }}
-              onClick={() => { onDelete(portfolio.id); close() }}>
-              DELETE PORTFOLIO
-            </button>
-          )}
+          <div style={lbl(th)}>Name</div>
+          <Field value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Long-term" style={{ marginTop: 0 }} />
+
+          <ColourSwatches th={th} value={color} onChange={setColor} />
+
+          <div style={lbl(th)}>Goal · SAR · optional</div>
+          <Field value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" placeholder="0" style={{ marginTop: 0 }} />
+
+          <div style={lbl(th)}>Target month · optional</div>
+          <Field value={tdate} onChange={(e) => setTdate(e.target.value)} type="month" style={{ marginTop: 0 }} />
+
+          <div style={lbl(th)}>Note · optional</div>
+          <Field value={note} onChange={(e) => setNote(e.target.value)} placeholder="What's this portfolio for?" style={{ marginTop: 0 }} />
+
+          <SheetSave onClick={() => {
+            if (!valid) return
+            onSave(portfolio?.id, { name: name.trim(), target: parseInt(target, 10) || 0, targetDate: tdate || '', color, note: note.trim() })
+            close()
+          }} style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}>
+            {editing ? 'Save changes' : 'Create portfolio'}
+          </SheetSave>
+          {editing && <SheetDelete onClick={() => { onDelete(portfolio.id); close() }}>Delete portfolio</SheetDelete>}
         </>
       )}
     </Sheet>
@@ -375,13 +391,14 @@ export function PortfolioSheet({ portfolio, onClose, onSave, onDelete }) {
 }
 
 export function HoldingSheet({ holding, portfolioId, portfolios, onClose, onSave, onDelete }) {
+  const th = useTheme()
   const editing = !!holding
   const realPfs = (portfolios || []).filter((p) => !p.isDefault)
   const [pid, setPid] = React.useState(holding?.portfolioId || portfolioId || (realPfs[0]?.id ?? ''))
   const [name, setName] = React.useState(holding?.name || '')
   const [kind, setKind] = React.useState(holding?.kind || 'position')
   const [category, setCategory] = React.useState(holding?.cat || '')
-  const [color, setColor] = React.useState(holding?.color || ASSET_COLORS[0])
+  const [color, setColor] = React.useState(holding?.color || SWATCHES[0])
   const [note, setNote] = React.useState(holding?.note || '')
   // opening (add only)
   const [units, setUnits] = React.useState('')
@@ -395,78 +412,73 @@ export function HoldingSheet({ holding, portfolioId, portfolios, onClose, onSave
     <Sheet title={editing ? 'Edit · ' + holding.name : 'New holding'} onClose={onClose}>
       {(close) => (
         <>
-          <div className="k-field" style={{ marginTop: 14 }}>
-            <span className="k-label dim">Name</span>
-            <input className="k-input" placeholder={kind === 'cash' ? 'e.g. Cash Reserve' : 'e.g. US Stocks (VOO)'} value={name} onChange={(e) => setName(e.target.value)} data-autofocus />
-          </div>
-          <div className="k-field">
-            <span className="k-label dim">Type</span>
-            <Segmented items={[{ v: 'position', label: 'Position' }, { v: 'cash', label: 'Cash' }]} value={kind} onChange={setKind} />
-          </div>
+          <div style={lbl(th)}>Name</div>
+          <Field value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'cash' ? 'e.g. Cash Reserve' : 'e.g. US Stocks (VOO)'} style={{ marginTop: 0 }} />
+
+          <div style={lbl(th)}>Type</div>
+          <Segmented options={[{ value: 'position', label: 'Position' }, { value: 'cash', label: 'Cash' }]} value={kind} onChange={setKind} />
+
           {realPfs.length > 0 && (
-            <div className="k-field">
-              <span className="k-label dim">Portfolio</span>
-              <select className="k-input" value={pid} onChange={(e) => setPid(e.target.value)}>
+            <>
+              <div style={lbl(th)}>Portfolio</div>
+              <select value={pid} onChange={(e) => setPid(e.target.value)} style={{
+                display: 'block', width: '100%', border: 'none', background: th.card2, borderRadius: 12,
+                padding: '11px 13px', fontSize: 14, color: th.ink, outline: 'none', fontFamily: 'inherit',
+              }}>
                 {realPfs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-            </div>
+            </>
           )}
+
           {kind === 'position' && (
-            <div className="k-field">
-              <span className="k-label dim">Category &middot; optional</span>
-              <input className="k-input" placeholder="Stocks, crypto, gold…" value={category} onChange={(e) => setCategory(e.target.value)} />
-            </div>
+            <>
+              <div style={lbl(th)}>Category · optional</div>
+              <Field value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Stocks, crypto, gold…" style={{ marginTop: 0 }} />
+            </>
           )}
-          <ColourRow value={color} onChange={setColor} palette={ASSET_COLORS} />
+
+          <ColourSwatches th={th} value={color} onChange={setColor} />
 
           {!editing && kind === 'position' && (
             <div style={{ display: 'flex', gap: 12 }}>
-              <div className="k-field" style={{ flex: 1 }}>
-                <span className="k-label dim">Units</span>
-                <input className="k-input k-num" inputMode="decimal" placeholder="0" value={units} onChange={(e) => setUnits(e.target.value.replace(/[^0-9.]/g, ''))} />
+              <div style={{ flex: 1 }}>
+                <div style={lbl(th)}>Units</div>
+                <Field value={units} onChange={(e) => setUnits(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" style={{ marginTop: 0 }} />
               </div>
-              <div className="k-field" style={{ flex: 1 }}>
-                <span className="k-label dim">Buy price &middot; SAR</span>
-                <input className="k-input k-num" inputMode="decimal" placeholder="0" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))} />
+              <div style={{ flex: 1 }}>
+                <div style={lbl(th)}>Buy price · SAR</div>
+                <Field value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" style={{ marginTop: 0 }} />
               </div>
             </div>
           )}
           {!editing && kind === 'cash' && (
-            <div className="k-field">
-              <span className="k-label dim">Opening balance &middot; SAR</span>
-              <input className="k-input k-num" inputMode="decimal" placeholder="0" value={cash} onChange={(e) => setCash(e.target.value.replace(/[^0-9.]/g, ''))} />
-            </div>
+            <>
+              <div style={lbl(th)}>Opening balance · SAR</div>
+              <Field value={cash} onChange={(e) => setCash(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" style={{ marginTop: 0 }} />
+            </>
           )}
           {!editing && openAmt > 0 && (
-            <div className="k-micro" style={{ marginTop: 10, textAlign: 'center' }}>
-              Opens at <span className="k-num k-em" style={{ fontWeight: 600 }}>{fmt(openAmt)}</span> SAR cost basis{kind === 'position' && parseFloat(units) > 0 ? ` · avg ${fmt(openAmt / parseFloat(units))}` : ''}
+            <div style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: th.ink2 }}>
+              Opens at <b style={{ color: th.accent }}>{fmt(openAmt)}</b> SAR cost basis{kind === 'position' && parseFloat(units) > 0 ? ` · avg ${fmt(openAmt / parseFloat(units))}` : ''}
             </div>
           )}
 
-          <div className="k-field">
-            <span className="k-label dim">Note &middot; optional</span>
-            <input className="k-input" placeholder="Add a note" value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
+          <div style={lbl(th)}>Note · optional</div>
+          <Field value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note" style={{ marginTop: 0 }} />
 
-          <button className="k-btn accent full" style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
-            onClick={() => {
-              if (!valid) return
-              onSave(holding?.id, {
-                portfolioId: editing ? holding.portfolioId : (pid || null),
-                name: name.trim(), kind, category: category.trim() || (kind === 'cash' ? 'Cash' : 'Investment'),
-                color, note: note.trim(),
-                opening: editing ? null : { units: parseFloat(units) || 0, price: parseFloat(price) || 0, amount: Math.round(openAmt * 100) / 100 },
-              })
-              close()
-            }}>
-            {editing ? 'SAVE CHANGES' : 'ADD HOLDING'}
-          </button>
-          {editing && (
-            <button className="k-btn ghost full" style={{ marginTop: 10, color: 'var(--qahwa-loss)', borderColor: 'var(--qahwa-loss)' }}
-              onClick={() => { onDelete(holding.id); close() }}>
-              DELETE HOLDING
-            </button>
-          )}
+          <SheetSave onClick={() => {
+            if (!valid) return
+            onSave(holding?.id, {
+              portfolioId: editing ? holding.portfolioId : (pid || null),
+              name: name.trim(), kind, category: category.trim() || (kind === 'cash' ? 'Cash' : 'Investment'),
+              color, note: note.trim(),
+              opening: editing ? null : { units: parseFloat(units) || 0, price: parseFloat(price) || 0, amount: Math.round(openAmt * 100) / 100 },
+            })
+            close()
+          }} style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}>
+            {editing ? 'Save changes' : 'Add holding'}
+          </SheetSave>
+          {editing && <SheetDelete onClick={() => { onDelete(holding.id); close() }}>Delete holding</SheetDelete>}
         </>
       )}
     </Sheet>
@@ -474,6 +486,7 @@ export function HoldingSheet({ holding, portfolioId, portfolios, onClose, onSave
 }
 
 export function ActivitySheet({ holding, mode, onClose, onSave }) {
+  const th = useTheme()
   const isUnit = mode === 'buy' || mode === 'sell'
   const [units, setUnits] = React.useState('')
   const [price, setPrice] = React.useState('')
@@ -481,7 +494,7 @@ export function ActivitySheet({ holding, mode, onClose, onSave }) {
   const [note, setNote] = React.useState('')
 
   const titles = { buy: 'Buy', sell: 'Sell', deposit: 'Deposit to', withdraw: 'Withdraw from' }
-  const cta = { buy: 'LOG BUY', sell: 'LOG SELL', deposit: 'DEPOSIT', withdraw: 'WITHDRAW' }
+  const cta = { buy: 'Log buy', sell: 'Log sell', deposit: 'Deposit', withdraw: 'Withdraw' }
   const u = parseFloat(units) || 0
   const pr = parseFloat(price) || 0
   const computed = isUnit ? u * pr : (parseFloat(amount) || 0)
@@ -494,53 +507,48 @@ export function ActivitySheet({ holding, mode, onClose, onSave }) {
         <>
           {isUnit ? (
             <>
-              <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
-                <div className="k-field" style={{ flex: 1, marginTop: 0 }}>
-                  <span className="k-label dim">Units</span>
-                  <input className="k-input k-num" inputMode="decimal" placeholder="0" value={units}
-                    onChange={(e) => setUnits(e.target.value.replace(/[^0-9.]/g, ''))} data-autofocus />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={lbl(th)}>Units</div>
+                  <Field value={units} onChange={(e) => setUnits(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" style={{ marginTop: 0 }} />
                 </div>
-                <div className="k-field" style={{ flex: 1, marginTop: 0 }}>
-                  <span className="k-label dim">{mode === 'buy' ? 'Buy' : 'Sell'} price &middot; SAR</span>
-                  <input className="k-input k-num" inputMode="decimal" placeholder="0" value={price}
-                    onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))} />
+                <div style={{ flex: 1 }}>
+                  <div style={lbl(th)}>{mode === 'buy' ? 'Buy' : 'Sell'} price · SAR</div>
+                  <Field value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" style={{ marginTop: 0 }} />
                 </div>
               </div>
               {mode === 'sell' && holding.units != null && (
-                <div className="k-micro" style={{ marginTop: 8 }}>You hold <span className="k-num">{fmt(holding.units, holding.units % 1 ? 4 : 0)}</span> units{overSell ? ' — can’t sell more than that' : ''}</div>
+                <div style={{ marginTop: 8, fontSize: 11.5, color: overSell ? th.loss : th.ink3 }}>
+                  You hold {unitsStr(holding.units)} units{overSell ? ' — can’t sell more than that' : ''}
+                </div>
               )}
               {computed > 0 && (
-                <div className="k-micro" style={{ marginTop: 10, textAlign: 'center' }}>
-                  {mode === 'buy' ? 'Cost' : 'Proceeds'} <span className="k-num k-em" style={{ fontWeight: 600 }}>{fmt(computed)}</span> SAR
+                <div style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: th.ink2 }}>
+                  {mode === 'buy' ? 'Cost' : 'Proceeds'} <b style={{ color: th.accent }}>{fmt(computed)}</b> SAR
                 </div>
               )}
             </>
           ) : (
-            <div className="k-field" style={{ marginTop: 14 }}>
-              <span className="k-label dim">Amount</span>
-              <div className="k-amountrow">
-                <input className="k-input k-amount-in" inputMode="decimal" placeholder="0" value={amount}
-                  onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} data-autofocus />
-                <span className="k-amountcur">SAR</span>
-              </div>
-            </div>
+            <>
+              <div style={lbl(th)}>Amount · SAR</div>
+              <Field value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" big style={{ marginTop: 0 }} />
+            </>
           )}
-          <div className="k-field">
-            <span className="k-label dim">Note &middot; optional</span>
-            <input className="k-input" placeholder="Add a note" value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
-          <button className={'k-btn full ' + (mode === 'buy' || mode === 'deposit' ? 'accent' : '')}
-            style={{ marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}
-            onClick={() => {
-              if (!valid) return
-              const entry = isUnit
-                ? { type: mode, units: u, price: pr, amount: Math.round(computed * 100) / 100, date: TODAY, note: note.trim() }
-                : { type: mode, amount: Math.round(parseFloat(amount) * 100) / 100, date: TODAY, note: note.trim() }
-              onSave(holding.id, entry)
-              close()
-            }}>
-            {cta[mode]}
-          </button>
+
+          <div style={lbl(th)}>Note · optional</div>
+          <Field value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note" style={{ marginTop: 0 }} />
+
+          <SheetSave onClick={() => {
+            if (!valid) return
+            const entry = isUnit
+              ? { type: mode, units: u, price: pr, amount: Math.round(computed * 100) / 100, date: TODAY, note: note.trim() }
+              : { type: mode, amount: Math.round(parseFloat(amount) * 100) / 100, date: TODAY, note: note.trim() }
+            onSave(holding.id, entry)
+            close()
+          }} style={{
+            marginTop: 18, opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none',
+            background: (mode === 'sell' || mode === 'withdraw') ? th.ink : th.accent,
+          }}>{cta[mode]}</SheetSave>
         </>
       )}
     </Sheet>

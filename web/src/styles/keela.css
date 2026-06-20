@@ -1,806 +1,98 @@
 /* =========================================================================
-   Keela — the seeing face. Qahwa (Trema) design language, ported to iPhone.
-   Parchment terminal · two fonts · ember accent · radius 0 · 1px hairlines.
+   Keela — "Warm" design language. Soft-rounded fintech on sand & espresso.
+   Plus Jakarta Sans for text · JetBrains Mono for NUMERALS ONLY · terracotta
+   ember accent · generous radii · soft shadows.
+
+   Component visuals are inline-styled from the JS theme (lib/theme.js). This
+   sheet owns only: fonts, the shell/native surfaces (themed CSS vars), the
+   keyframes, scrollbar hiding, safe-areas, and reduced-motion.
    ========================================================================= */
-@import url('./colors_and_type.css');
 
-/* ---------- Dark theme (espresso / bean) ---------- */
-[data-theme="dark"] {
-  --qahwa-canvas:        #1B1510;
-  --qahwa-canvas-alt:    #221B14;
-  --qahwa-surface:       #29211A;
-  --qahwa-surface-sunk:  #14100B;
-  --qahwa-border:        #382E25;
-  --qahwa-border-strong: #4C3F32;
+/* JetBrains Mono restricted to numeric glyphs only — digits, separators,
+   currency punctuation and colons render in the terminal face while all letters
+   stay Plus Jakarta Sans. Applies everywhere via the body stack. Self-hosted. */
+@font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/JetBrainsMono-Regular.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
+@font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:500; font-display:swap; src:url('fonts/JetBrainsMono-Medium.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
+@font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:600; font-display:swap; src:url('fonts/JetBrainsMono-SemiBold.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
+@font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/JetBrainsMono-Bold.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
+@font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:800; font-display:swap; src:url('fonts/JetBrainsMono-ExtraBold.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
 
-  --qahwa-fg-1: #F3EEE5;
-  --qahwa-fg-2: #B4A595;
-  --qahwa-fg-3: #7C6E5F;
-  --qahwa-fg-inv: #1B1510;
-
-  --qahwa-accent:        #D17A4F;
-  --qahwa-accent-hover:  #E18A5C;
-  --qahwa-accent-press:  #B5673E;
-
-  --qahwa-gain:       #6FB87C;
-  --qahwa-gain-soft:  #23332A;
-  --qahwa-loss:       #DA756E;
-  --qahwa-loss-soft:  #3A2622;
-  --qahwa-flat:       #8A7C6C;
-
-  --qahwa-latte:      #C99A6A;
-  --qahwa-brewed:     #B06C28;
-  --qahwa-espresso:   #6E4B38;
-  --qahwa-bean:       #4A2E20;
-}
-
-/* ---------- Density & rhythm ----------
-   One spacing scale drives the whole app. --k-pad is the screen gutter (iOS-
-   comfortable), --k-sec the gap between top-level sections, --k-tap the minimum
-   touch target. Even "compact" keeps real breathing room. */
+/* Themed shell surfaces — mirror lib/theme.js so <html>/<body>/native pickers
+   and the iOS theme-color band all track the active theme. */
 :root {
-  --k-pad: 20px; --k-row-y: 13px; --k-gap: 16px; --k-sec: 30px; --k-tap: 44px;
+  --k-bg: #ECE5D6; --k-card: #FDFBF6; --k-line: #E0D8C6; --k-accent: #C4623A;
+  --k-pad: 20px;
 }
-[data-density="compact"] {
-  --k-pad: 18px; --k-row-y: 11px; --k-gap: 14px; --k-sec: 26px; --k-tap: 44px;
+[data-theme="dark"] {
+  --k-bg: #16120F; --k-card: #221E1A; --k-line: #322B25; --k-accent: #D6794C;
 }
 
-/* =========================================================================
-   Reset / shell
-   ========================================================================= */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-.k-root { height: 100%; position: relative; overflow: hidden;
-  color-scheme: light; /* native date/time pickers + scrollbars follow the theme */
-  background: var(--qahwa-canvas);
-  transition: background var(--qahwa-motion-base) var(--qahwa-ease); }
-.k-root[data-theme="dark"] { color-scheme: dark; }
-
-.k-app {
-  height: 100%;
-  display: flex; flex-direction: column;
-  background: var(--qahwa-canvas);
-  color: var(--qahwa-fg-1);
-  font-family: var(--qahwa-font-ui);
-  font-feature-settings: "tnum" 1, "kern" 1;
+html, body {
+  height: 100%; margin: 0;
+  background: var(--k-bg);
+  font-family: 'JBMonoNum', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden;
-  transition: background var(--qahwa-motion-base) var(--qahwa-ease),
-              color var(--qahwa-motion-base) var(--qahwa-ease);
 }
-.k-safetop { height: 56px; flex: none; background: var(--qahwa-canvas); }
-.k-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+html { color-scheme: light; }
+html[data-theme='dark'] { color-scheme: dark; }
+body { overscroll-behavior-y: none; }
+
+/* hide scrollbars on the app scrollers */
+.kscroll::-webkit-scrollbar { width: 0; height: 0; }
+.kscroll { scrollbar-width: none; }
+
+/* =========================================================================
+   App shell scaffolding
+   ========================================================================= */
+.k-root { height: 100%; position: relative; overflow: hidden; background: var(--k-bg);
+  transition: background 220ms cubic-bezier(.2,.8,.2,1); }
+.k-app { height: 100%; display: flex; flex-direction: column; background: var(--k-bg);
+  color: var(--k-ink, #2A2521); overflow: hidden; }
+.k-safetop { height: max(8px, env(safe-area-inset-top)); flex: none; background: var(--k-bg); }
+.k-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+/* every screen reserves room for the floating tab bar + safe area */
+.k-screen { padding: 8px 0 calc(116px + env(safe-area-inset-bottom)); }
+
+/* =========================================================================
+   Motion — entrances, sheet, detail push, fades. Brief and soft.
+   ========================================================================= */
+@keyframes kfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.fade-in { animation: kfade 360ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* full-screen detail page pushes in from the right (iOS) */
+.k-detail { position: absolute; inset: 0; z-index: 70; background: var(--k-bg);
+  display: flex; flex-direction: column;
+  animation: kdetailin 340ms cubic-bezier(.32,.72,0,1) both; will-change: transform; }
+@keyframes kdetailin { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* bottom sheet — scrim fades, sheet slides up as one envelope */
+.k-overlay { position: absolute; inset: 0; z-index: 80; display: flex; align-items: flex-end; }
+.k-overlay::before { content: ''; position: absolute; inset: 0; background: rgba(20,15,10,.42);
+  animation: kscrim-in 320ms ease both; }
+.k-overlay.out::before { animation: kscrim-out 240ms ease both; }
+.k-overlay > .k-sheet { position: relative; z-index: 1; width: 100%; will-change: transform;
+  animation: ksheet-in 360ms cubic-bezier(.32,.72,0,1) both; }
+.k-overlay.out > .k-sheet { animation: ksheet-out 240ms cubic-bezier(.4,0,1,1) both; }
+@keyframes kscrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kscrim-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ksheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ksheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+/* FAB pop-in */
+@keyframes kfab-in { from { opacity: 0; transform: translateY(10px) scale(.9); } to { opacity: 1; transform: none; } }
+.k-fab-in { animation: kfab-in 240ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* grow-from-zero for stacked bars / fills (transform, so widths stay intact) */
+@keyframes kgrowx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* respect reduce-motion */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in, .k-detail, .k-overlay::before, .k-overlay > .k-sheet, .k-fab-in {
+    animation-duration: 1ms !important;
+  }
 }
-.k-scroll::-webkit-scrollbar { width: 0; height: 0; }
-
-/* =========================================================================
-   Type helpers
-   ========================================================================= */
-.k-label { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-2); white-space: nowrap; }
-.k-label.dim { color: var(--qahwa-fg-3); }
-.k-label.em  { color: var(--qahwa-accent); }
-.k-micro { font: 400 10px/1.4 var(--qahwa-font-ui); color: var(--qahwa-fg-3); }
-.k-num  { font-family: var(--qahwa-font-data); font-feature-settings: "tnum" 1; }
-.k-gain { color: var(--qahwa-gain); }
-.k-loss { color: var(--qahwa-loss); }
-.k-flat { color: var(--qahwa-flat); }
-.k-em   { color: var(--qahwa-accent); }
-.k-sar  { font: 500 12px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
-  letter-spacing: 0.04em; }
-
-/* =========================================================================
-   Screen scaffolding
-   ========================================================================= */
-.k-screen { padding-bottom: 28px; }
-.k-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px calc(var(--k-pad) - 4px) 10px var(--k-pad);
-  min-height: 52px;
-}
-/* header icon button — full touch target, optically aligned to the edge */
-.k-icontap { width: var(--k-tap); height: var(--k-tap); display: grid; place-items: center;
-  background: transparent; border: 0; cursor: pointer; color: var(--qahwa-fg-2);
-  -webkit-appearance: none; appearance: none;
-  transition: color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-icontap:active { color: var(--qahwa-fg-1); }
-.k-icontap svg { width: 20px; height: 20px; display: block; }
-.k-head-l { display: flex; flex-direction: column; gap: 5px; }
-.k-title { font: 600 26px/1.05 var(--qahwa-font-ui); letter-spacing: -0.02em;
-  color: var(--qahwa-fg-1); }
-.k-head-meta { display: flex; align-items: center; gap: 8px; }
-.k-asof { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); text-align: right; }
-
-/* mono page heading (terminal style) + sans subtitle */
-.k-phead { padding: 10px var(--k-pad) 0; display: flex; align-items: flex-start;
-  justify-content: space-between; gap: 12px; }
-.k-htitle { font: 700 23px/1.05 var(--qahwa-font-data); letter-spacing: 0.02em;
-  text-transform: uppercase; color: var(--qahwa-fg-1); }
-[data-density="compact"] .k-htitle { font-size: 21px; }
-.k-hsub { font: 400 13px/1.4 var(--qahwa-font-ui); color: var(--qahwa-fg-2);
-  margin-top: 8px; text-wrap: pretty; }
-
-/* stat / key-value grid — open, no box, hairline dividers */
-.k-stats { display: grid; grid-template-columns: 1fr 1fr; }
-.k-stat { padding: 13px 0 14px; display: flex; flex-direction: column; gap: 6px;
-  border-top: 1px solid var(--qahwa-border); }
-.k-stat:nth-child(odd) { padding-right: 14px; }
-.k-stat:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--qahwa-border); }
-.k-stat:nth-child(-n+2) { border-top: 0; }
-.k-stat-val { font: 600 18px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
-  color: var(--qahwa-fg-1); }
-[data-density="compact"] .k-stat-val { font-size: 17px; }
-.k-stat-cap { font: 500 10px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-3);
-  letter-spacing: 0.02em; }
-
-.k-bucket-card { transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-bucket-card:active { background: var(--qahwa-surface); }
-.k-iconbtn { font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.08em;
-  text-transform: uppercase; padding: 5px 7px; border: 1px solid var(--qahwa-border-strong);
-  background: var(--qahwa-canvas); color: var(--qahwa-fg-2); cursor: pointer; }
-.k-iconbtn:hover { background: var(--qahwa-surface); color: var(--qahwa-fg-1); }
-.k-iconbtn.danger:hover { color: var(--qahwa-loss); border-color: var(--qahwa-loss); }
-.k-iconbtn.ico { padding: 0; width: 40px; height: 40px; display: inline-flex;
-  align-items: center; justify-content: center; }
-.k-iconbtn.ico svg { width: 16px; height: 16px; display: block; }
-
-.k-sec { padding: 0 var(--k-pad); margin-top: var(--k-sec); }
-.k-sec-head { display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 12px; }
-
-/* =========================================================================
-   Primitives
-   ========================================================================= */
-.k-panel { border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas); }
-.k-panel.tint { background: var(--qahwa-surface); }
-
-.k-btn {
-  font: 500 12px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
-  min-height: 48px; padding: 12px 16px; border: 1px solid var(--qahwa-border-strong);
-  background: var(--qahwa-canvas); color: var(--qahwa-fg-1);
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
-              border-color var(--qahwa-motion-fast) var(--qahwa-ease),
-              color var(--qahwa-motion-fast) var(--qahwa-ease);
-}
-.k-btn:active { background: var(--qahwa-surface); }
-.k-btn.accent { background: var(--qahwa-accent); border-color: var(--qahwa-accent);
-  color: var(--qahwa-fg-inv); }
-.k-btn.accent:active { background: var(--qahwa-accent-press); border-color: var(--qahwa-accent-press); }
-.k-btn.dark { background: var(--qahwa-fg-1); border-color: var(--qahwa-fg-1);
-  color: var(--qahwa-canvas); }
-.k-btn.ghost { background: transparent; border-color: var(--qahwa-border); color: var(--qahwa-fg-2); }
-.k-btn.full { width: 100%; }
-.k-btn.sm { min-height: 38px; padding: 8px 12px; font-size: 11px; }
-
-.k-tag {
-  font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.1em; text-transform: uppercase;
-  padding: 4px 6px; border: 1px solid var(--qahwa-border-strong); color: var(--qahwa-fg-2);
-  background: var(--qahwa-canvas); white-space: nowrap;
-}
-.k-tag.gain { color: var(--qahwa-gain); border-color: var(--qahwa-gain); }
-.k-tag.loss { color: var(--qahwa-loss); border-color: var(--qahwa-loss); }
-.k-tag.em   { color: var(--qahwa-accent); border-color: var(--qahwa-accent); }
-.k-tag.mute { color: var(--qahwa-fg-3); border-color: var(--qahwa-border); }
-
-/* category / entry badge (icon tile) */
-.k-sq {
-  width: 38px; height: 38px; flex: none;
-  border: 1px solid var(--qahwa-border-strong);
-  display: grid; place-items: center;
-  font: 600 11px/1 var(--qahwa-font-data); letter-spacing: 0.04em;
-  color: var(--qahwa-fg-2); background: var(--qahwa-canvas);
-  position: relative;
-}
-[data-density="compact"] .k-sq { width: 34px; height: 34px; font-size: 10px; }
-.k-sq svg { width: 19px; height: 19px; display: block; }
-[data-density="compact"] .k-sq svg { width: 18px; height: 18px; }
-/* coloured variant — set --c to the category/entry colour */
-.k-sq.tinted {
-  border-color: color-mix(in srgb, var(--c) 32%, var(--qahwa-border));
-  background: color-mix(in srgb, var(--c) 13%, var(--qahwa-canvas));
-  color: var(--c);
-}
-.k-sq.tinted.dashed { border-style: dashed; background: transparent; color: var(--qahwa-fg-3); }
-.k-sq.tinted img { width: 20px; height: 20px; display: block; object-fit: contain; }
-
-/* keela ember dot marker */
-.k-ember { width: 6px; height: 6px; flex: none; background: var(--qahwa-accent);
-  display: inline-block; }
-.k-sq .k-ember { position: absolute; top: -1px; right: -1px; width: 5px; height: 5px; }
-
-/* progress bar */
-.k-bar { height: 8px; background: var(--qahwa-surface-sunk);
-  border: 1px solid var(--qahwa-border); position: relative; overflow: hidden; }
-.k-bar > i { position: absolute; inset: 0 auto 0 0; display: block;
-  background: var(--qahwa-accent);
-  transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
-
-/* =========================================================================
-   Rows / lists
-   ========================================================================= */
-.k-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: calc(var(--k-row-y) + 1px) var(--k-pad);
-  background: transparent;
-}
-.k-row.btn { width: 100%; text-align: left; border-left: 0; border-right: 0; cursor: pointer;
-  border-top: 0; }
-.k-row.btn:active { background: var(--qahwa-surface); }
-.k-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.k-row-name { font: 500 13px/1.25 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
-  display: flex; align-items: center; gap: 6px; }
-.k-row-sub { font: 400 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); }
-.k-row-r { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
-.k-row-amt { font: 500 14px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1);
-  font-feature-settings: "tnum" 1; }
-.k-chev { color: var(--qahwa-fg-3); font: 400 14px/1 var(--qahwa-font-data); flex: none; }
-
-/* day group header */
-.k-day { display: flex; align-items: baseline; justify-content: space-between;
-  padding: 18px var(--k-pad) 7px; position: sticky; top: 0; z-index: 2;
-  background: var(--qahwa-canvas); }
-.k-day .k-label { color: var(--qahwa-fg-2); }
-.k-addlink { background: transparent; border: 0; cursor: pointer; padding: 4px 0 4px 12px; margin: -4px 0;
-  font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--qahwa-accent); -webkit-appearance: none; appearance: none; }
-.k-addlink:active { color: var(--qahwa-accent-press); }
-.k-day-tot { font: 500 11px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); }
-
-/* key-value grid */
-.k-kv { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid var(--qahwa-border); }
-.k-kv.two { grid-template-columns: 1fr 1fr; }
-.k-kv-cell { padding: 12px var(--k-pad); border-right: 1px solid var(--qahwa-border);
-  display: flex; flex-direction: column; gap: 6px; }
-.k-kv-cell:last-child { border-right: 0; }
-.k-kv-val { font: 500 16px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1);
-  font-feature-settings: "tnum" 1; }
-
-/* =========================================================================
-   Hero — net worth + trend backdrop
-   ========================================================================= */
-.k-hero { position: relative; padding: 16px var(--k-pad) 0; overflow: hidden; }
-.k-hero--trend { padding-bottom: 6px; }
-.k-hero-fig { position: relative; z-index: 2; }
-.k-hero-num { font: 600 52px/0.95 var(--qahwa-font-data); letter-spacing: -0.03em;
-  color: var(--qahwa-fg-1); font-feature-settings: "tnum" 1; display: flex;
-  align-items: baseline; gap: 8px; }
-[data-density="compact"] .k-hero-num { font-size: 46px; }
-.k-hero-delta { display: flex; align-items: center; gap: 8px; margin-top: 10px;
-  font: 500 12px/1 var(--qahwa-font-data); flex-wrap: wrap; }
-.k-hero-trend { position: relative; z-index: 1; margin: 10px calc(-1 * var(--k-pad)) 0;
-  height: 116px; }
-.k-hero-trend svg { width: 100%; height: 100%; display: block; }
-
-/* trend path — visible by default; draw-in via JS-toggled transition (throttle-safe) */
-.k-trendline { stroke: var(--qahwa-accent); stroke-width: 1.5; fill: none;
-  vector-effect: non-scaling-stroke; transition: stroke-dashoffset 900ms var(--qahwa-ease); }
-.k-trendfill { fill: var(--qahwa-accent); opacity: 0.1;
-  transition: opacity 600ms var(--qahwa-ease) 300ms; }
-
-/* =========================================================================
-   Pact ledger gauge
-   ========================================================================= */
-.k-pact { border: 1px solid var(--qahwa-border); background: var(--qahwa-surface); }
-.k-pact-top { display: flex; align-items: flex-end; justify-content: space-between;
-  padding: 13px var(--k-pad) 11px; }
-.k-pact-kept { font: 600 22px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1; }
-.k-gauge { position: relative; height: 34px; margin: 0 var(--k-pad);
-  border: 1px solid var(--qahwa-border-strong); display: flex; overflow: hidden;
-  background: var(--qahwa-surface-sunk); }
-.k-gauge-save { background: var(--qahwa-gain); display: flex; align-items: center;
-  padding-left: 8px; transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
-.k-gauge-live { flex: 1; display: flex; align-items: center; justify-content: flex-end;
-  padding-right: 8px;
-  background-image: repeating-linear-gradient(135deg,
-    transparent 0 5px, color-mix(in srgb, var(--qahwa-fg-3) 22%, transparent) 5px 6px); }
-.k-gauge-seg-lbl { font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; }
-.k-gauge-tick { position: absolute; top: -4px; bottom: -4px; width: 1px;
-  background: var(--qahwa-fg-1); z-index: 3; }
-.k-gauge-tick::after { content: attr(data-l); position: absolute; top: -13px; left: 50%;
-  transform: translateX(-50%); font: 600 8px/1 var(--qahwa-font-data);
-  color: var(--qahwa-fg-1); letter-spacing: 0.04em; white-space: nowrap; }
-.k-pact-foot { display: flex; align-items: center; justify-content: space-between;
-  padding: 12px var(--k-pad); margin-top: 13px; border-top: 1px solid var(--qahwa-border); }
-
-/* countdown vow progress */
-.k-vow { display: flex; flex-direction: column; gap: 7px; }
-.k-vow-bar { height: 3px; background: var(--qahwa-surface-sunk); position: relative; }
-.k-vow-bar > i { position: absolute; inset: 0 auto 0 0; background: var(--qahwa-accent); }
-
-/* =========================================================================
-   Keela note object — ember-marked, pinned to data
-   ========================================================================= */
-.k-knote { position: relative; border: 1px solid var(--qahwa-border);
-  border-left: 1px solid var(--qahwa-accent);
-  background: color-mix(in srgb, var(--qahwa-accent) 5%, var(--qahwa-canvas));
-  padding: 13px 14px 14px; }
-[data-theme="dark"] .k-knote { background: color-mix(in srgb, var(--qahwa-accent) 9%, var(--qahwa-canvas)); }
-.k-knote-head { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
-.k-knote-by { font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--qahwa-accent); }
-.k-knote-date { font: 500 10px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
-  letter-spacing: 0.04em; margin-left: auto; }
-.k-knote-body { font: 400 14px/1.55 var(--qahwa-font-ui); font-style: italic;
-  color: var(--qahwa-fg-1); text-wrap: pretty; }
-.k-knote-body.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-  overflow: hidden; }
-
-/* =========================================================================
-   Allocation stacked bar
-   ========================================================================= */
-.k-alloc { height: 38px; display: flex; border: 1px solid var(--qahwa-border-strong);
-  overflow: hidden; }
-.k-alloc-seg { position: relative; transition: filter var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-alloc-seg + .k-alloc-seg { border-left: 1px solid var(--qahwa-canvas); }
-.k-legend { margin-top: 14px; display: flex; flex-direction: column; }
-.k-legend-row { display: flex; align-items: center; gap: 10px;
-  padding: 9px 0; border-top: 1px solid var(--qahwa-border); }
-.k-legend-row:first-child { border-top: 0; }
-.k-swatch { width: 10px; height: 10px; flex: none; }
-
-/* cashflow stacked bar — compact income allocation on Home */
-.k-flowbar { height: 16px; display: flex; overflow: hidden;
-  border: 1px solid var(--qahwa-border-strong); background: var(--qahwa-surface-sunk); }
-.k-flowbar-seg { min-width: 2px; transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
-.k-flowbar-seg + .k-flowbar-seg { border-left: 1px solid var(--qahwa-canvas); }
-
-/* =========================================================================
-   Spending analytics — pace chart, legend, category breakdown
-   ========================================================================= */
-.k-chartleg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
-.k-chartleg span { display: inline-flex; align-items: center; gap: 6px;
-  font: 400 10px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-3); }
-.k-chartleg-sw { width: 13px; height: 0; border-top: 2px solid; align-self: center; }
-.k-chartleg-sw.cur { border-color: var(--qahwa-accent); }
-.k-chartleg-sw.prev { border-color: var(--qahwa-fg-3); }
-.k-chartleg-sw.bud { border-top-style: dashed; border-color: var(--qahwa-border-strong); }
-.k-chartleg-sw.bar { width: 9px; height: 9px; border-top: 0; background: var(--qahwa-accent); }
-
-.k-catbars { display: flex; flex-direction: column; gap: 12px; }
-.k-catbar { display: flex; align-items: center; gap: 9px; width: 100%;
-  background: transparent; border: 0; padding: 0; text-align: left; }
-button.k-catbar { cursor: pointer; -webkit-appearance: none; appearance: none;
-  transition: opacity var(--qahwa-motion-fast) var(--qahwa-ease); }
-button.k-catbar:active { opacity: 0.6; }
-.k-catbar-dot { width: 8px; height: 8px; flex: none; }
-/* icon variant — small tinted glyph tile; set --c to the category colour */
-.k-catbar-ic { width: 26px; height: 26px; flex: none; display: grid; place-items: center;
-  border: 1px solid color-mix(in srgb, var(--c) 32%, var(--qahwa-border));
-  background: color-mix(in srgb, var(--c) 13%, var(--qahwa-canvas)); color: var(--c); }
-.k-catbar-ic svg { width: 15px; height: 15px; display: block; }
-/* budget cap marker — a hairline on the track at the cap position */
-.k-catbar-cap { position: absolute; top: 0; bottom: 0; width: 1px;
-  background: var(--qahwa-fg-1); opacity: 0.55; z-index: 1; }
-.k-catbar-name { width: 72px; flex: none; font: 500 12px/1.2 var(--qahwa-font-ui);
-  color: var(--qahwa-fg-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-catbar-track { flex: 1; height: 6px; background: var(--qahwa-surface-sunk); position: relative; overflow: hidden; }
-.k-catbar-track > i { position: absolute; inset: 0 auto 0 0; display: block;
-  transition: width var(--qahwa-motion-slow) var(--qahwa-ease); }
-.k-catbar-val { min-width: 46px; text-align: right; font: 500 12px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1); }
-.k-catbar-pct { min-width: 30px; text-align: right; font: 500 10px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); }
-
-/* =========================================================================
-   Segmented control
-   ========================================================================= */
-/* iOS-style segmented control — slim inset track, raised selected tile. */
-.k-seg { display: flex; gap: 2px; padding: 2px;
-  background: var(--qahwa-surface-sunk); border: 1px solid var(--qahwa-border); }
-.k-seg-item { flex: 1; min-height: 28px; padding: 0 6px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.07em; text-transform: uppercase;
-  color: var(--qahwa-fg-2); background: transparent; border: 0;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
-              color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-seg-item.on { background: var(--qahwa-canvas); color: var(--qahwa-fg-1);
-  box-shadow: 0 1px 1.5px rgba(28, 22, 17, 0.12); }
-
-/* =========================================================================
-   Bottom tab bar
-   ========================================================================= */
-.k-tabbar { flex: none; display: flex; background: var(--qahwa-surface);
-  border-top: 1px solid var(--qahwa-border); padding-bottom: 26px; }
-.k-tab { flex: 1; border: 0; background: transparent; cursor: pointer;
-  padding: 11px 2px 9px; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  position: relative; color: var(--qahwa-fg-3);
-  transition: color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-tab-glyph { width: 20px; height: 20px; display: block; }
-.k-tab-lbl { font: 600 8.5px/1 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; }
-.k-tab.on { color: var(--qahwa-accent); }
-.k-tab.on::before { content: ""; position: absolute; top: -1px; left: 50%;
-  transform: translateX(-50%); width: 26px; height: 2px; background: var(--qahwa-accent); }
-
-/* =========================================================================
-   Sheet / overlay
-   ========================================================================= */
-.k-overlay { position: absolute; inset: 0; z-index: 80; display: flex; flex-direction: column;
-  justify-content: flex-end; background: color-mix(in srgb, var(--qahwa-fg-1) 32%, transparent); }
-/* Entrance/exit animation lives in index.css (.k-overlay > .k-sheet). */
-.k-sheet { background: var(--qahwa-canvas); border-top: 1px solid var(--qahwa-border-strong);
-  max-height: 92%; display: flex; flex-direction: column; }
-.k-sheet-grab { width: 36px; height: 4px; flex: none; margin: 8px auto 0;
-  background: var(--qahwa-border-strong); }
-.k-sheet-head { display: flex; align-items: center; gap: 12px;
-  padding: 6px var(--k-pad) 11px; border-bottom: 1px solid var(--qahwa-border); }
-.k-sheet-title { flex: 1; min-width: 0; font: 600 15px/1.25 var(--qahwa-font-ui);
-  letter-spacing: -0.01em; color: var(--qahwa-fg-1); }
-.k-sheet-cancel { flex: none; background: transparent; border: 0; cursor: pointer;
-  min-height: var(--k-tap); padding: 0 2px; margin-right: -2px;
-  font: 500 14px/1 var(--qahwa-font-ui); color: var(--qahwa-accent);
-  -webkit-appearance: none; appearance: none; }
-.k-sheet-cancel:active { color: var(--qahwa-accent-press); }
-.k-sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 6px var(--k-pad) calc(20px + env(safe-area-inset-bottom)); }
-
-/* full-screen detail page (pushed) */
-.k-detail { position: absolute; inset: 0; z-index: 70; background: var(--qahwa-canvas);
-  display: flex; flex-direction: column; }
-.k-detail-bar { display: flex; align-items: center; gap: 12px; padding: 56px var(--k-pad) 12px;
-  border-bottom: 1px solid var(--qahwa-border); flex: none; }
-.k-back { background: transparent; border: 0; cursor: pointer; color: var(--qahwa-fg-2);
-  font: 500 12px/1 var(--qahwa-font-ui); letter-spacing: 0.06em; text-transform: uppercase;
-  display: flex; align-items: center; gap: 6px; padding: 0; }
-
-/* =========================================================================
-   Inputs
-   ========================================================================= */
-.k-field { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; }
-.k-field-lbl { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-2); }
-/* Underline fields — no fill, just a hairline that lights up on focus. Light and
-   compact. 16px text so iOS never zooms on focus. */
-.k-input { border: 0; border-bottom: 1px solid var(--qahwa-border-strong); background: transparent;
-  min-height: 38px; padding: 4px 0; font: 400 16px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
-  width: 100%; outline: none; border-radius: 0; -webkit-appearance: none; appearance: none;
-  transition: border-color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-input:focus { border-bottom-color: var(--qahwa-accent); border-bottom-width: 2px; }
-.k-input::placeholder { color: var(--qahwa-fg-3); }
-.k-amount-in { font-family: var(--qahwa-font-data); font-size: 30px; font-weight: 600;
-  letter-spacing: -0.01em; text-align: left; min-height: 48px; padding: 2px 0; border-bottom-width: 2px; }
-.k-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-
-/* elegant amount field — sized to content, not full width, with a currency tag */
-.k-amountrow { display: flex; align-items: baseline; gap: 9px; }
-.k-amountrow .k-amount-in { width: auto; flex: 0 1 200px; min-width: 90px; }
-.k-amountcur { flex: none; font: 500 13px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
-  letter-spacing: 0.06em; }
-
-/* category picker — colourful icon chips */
-.k-catpick { display: flex; flex-wrap: wrap; gap: 7px; }
-.k-catchip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
-  padding: 0 12px 0 9px; border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas);
-  color: var(--qahwa-fg-2); font: 500 12px/1 var(--qahwa-font-ui); cursor: pointer;
-  -webkit-appearance: none; appearance: none;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
-              border-color var(--qahwa-motion-fast) var(--qahwa-ease),
-              color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-catchip-ic { width: 16px; height: 16px; flex: none; color: var(--c);
-  display: inline-flex; align-items: center; justify-content: center; }
-.k-catchip-ic svg { width: 16px; height: 16px; display: block; }
-.k-catchip.on { background: color-mix(in srgb, var(--c) 15%, var(--qahwa-canvas));
-  border-color: var(--c); color: var(--qahwa-fg-1); }
-.k-chip { font: 500 12px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
-  min-height: 34px; padding: 0 12px; display: inline-flex; align-items: center;
-  border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas);
-  color: var(--qahwa-fg-2); cursor: pointer; }
-.k-chip.on { background: var(--qahwa-accent); border-color: var(--qahwa-accent); color: var(--qahwa-fg-inv); }
-
-/* =========================================================================
-   Empty / loading states
-   ========================================================================= */
-.k-empty { padding: 36px var(--k-pad); text-align: center; display: flex;
-  flex-direction: column; align-items: center; gap: 10px; }
-.k-empty-mark { width: 30px; height: 30px; opacity: 0.5; }
-.k-empty-txt { font: 400 13px/1.5 var(--qahwa-font-ui); color: var(--qahwa-fg-3);
-  font-style: italic; max-width: 240px; }
-
-.k-skel { background: var(--qahwa-surface); position: relative; overflow: hidden; }
-.k-skel::after { content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent,
-    color-mix(in srgb, var(--qahwa-fg-3) 12%, transparent), transparent);
-  animation: kshimmer 1.2s infinite; }
-@keyframes kshimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-
-/* =========================================================================
-   Motion — fills rise from the left on mount. Functional, brief. The fill's
-   width stays inline; scaleX(0→1) just reveals it without distorting the value.
-   ========================================================================= */
-@keyframes kgrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.k-bar > i,
-.k-catbar-track > i,
-.k-flowbar-seg {
-  transform-origin: left center;
-  animation: kgrow var(--qahwa-motion-slow) var(--qahwa-ease) both;
-}
-
-/* =========================================================================
-   Floating quick-add (FAB) — square terracotta ember, floats above the tab bar
-   ========================================================================= */
-.k-fab {
-  position: fixed; right: var(--k-pad); z-index: 76;
-  bottom: calc(78px + env(safe-area-inset-bottom));
-  width: 52px; height: 52px; display: grid; place-items: center;
-  background: var(--qahwa-accent); border: 1px solid var(--qahwa-accent-press);
-  color: var(--qahwa-fg-inv); cursor: pointer; -webkit-appearance: none; appearance: none;
-  box-shadow: 0 4px 14px rgba(28, 22, 17, 0.22);
-  animation: kfab-in var(--qahwa-motion-base) var(--qahwa-ease) both;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease),
-              transform var(--qahwa-motion-fast) var(--qahwa-ease);
-}
-.k-fab:active { background: var(--qahwa-accent-press); transform: scale(0.94); }
-.k-fab svg { width: 22px; height: 22px; display: block; }
-@keyframes kfab-in { from { opacity: 0; transform: translateY(10px) scale(0.9); } to { opacity: 1; transform: none; } }
-
-/* =========================================================================
-   Keela whisper — a quiet one-line nudge in her voice on the data screens
-   ========================================================================= */
-.k-whisper { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px;
-  border: 1px solid var(--qahwa-border);
-  background: color-mix(in srgb, var(--qahwa-accent) 5%, var(--qahwa-canvas)); }
-.k-whisper .k-ember { margin-top: 4px; }
-.k-whisper-txt { font: 400 12.5px/1.5 var(--qahwa-font-ui); font-style: italic;
-  color: var(--qahwa-fg-2); }
-.k-whisper-txt b { font-weight: 600; font-style: normal; color: var(--qahwa-fg-1); }
-
-/* =========================================================================
-   Swipe row — drag left to reveal Edit / Delete (iOS idiom). The foreground
-   slides over fixed action buttons; vertical scroll still passes through.
-   ========================================================================= */
-.k-swipe { position: relative; overflow: hidden; }
-.k-swipe-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; z-index: 0; }
-.k-swipe-act { width: 72px; border: 0; cursor: pointer; -webkit-appearance: none; appearance: none;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.08em; text-transform: uppercase;
-  background: var(--qahwa-surface); color: var(--qahwa-fg-1); }
-.k-swipe-act svg { width: 16px; height: 16px; display: block; }
-.k-swipe-act.del { background: var(--qahwa-loss); color: var(--qahwa-fg-inv); }
-.k-swipe-act:active { filter: brightness(0.94); }
-.k-swipe-fg { position: relative; z-index: 1; background: var(--qahwa-canvas);
-  touch-action: pan-y; }
-
-/* =========================================================================
-   Renewal calendar — a 30-day timeline of upcoming bill/subscription renewals
-   ========================================================================= */
-.k-renew-track { position: relative; height: 8px; margin-top: 4px;
-  background: var(--qahwa-surface-sunk); border: 1px solid var(--qahwa-border); }
-.k-renew-pip { position: absolute; top: -2px; width: 3px; height: 12px;
-  transform: translateX(-1px); }
-.k-caltile { width: 38px; height: 38px; flex: none; border: 1px solid var(--qahwa-border-strong);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: var(--qahwa-canvas); }
-[data-density="compact"] .k-caltile { width: 34px; height: 34px; }
-.k-caltile b { font: 600 14px/1 var(--qahwa-font-data); color: var(--qahwa-fg-1); }
-.k-caltile span { font: 600 8px/1 var(--qahwa-font-ui); letter-spacing: 0.08em;
-  color: var(--qahwa-fg-3); margin-top: 2px; }
-
-/* markdown */
-.k-md { font: 400 13.5px/1.6 var(--qahwa-font-ui); color: var(--qahwa-fg-1); }
-.k-md h3 { font: 600 11px/1.3 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-2); margin: 18px 0 8px; }
-.k-md p { margin: 0 0 11px; text-wrap: pretty; }
-.k-md ul { margin: 0 0 11px; padding-left: 0; list-style: none; }
-.k-md li { position: relative; padding-left: 16px; margin-bottom: 6px; }
-.k-md li::before { content: "—"; position: absolute; left: 0; color: var(--qahwa-accent);
-  font-family: var(--qahwa-font-data); }
-.k-md strong { font-weight: 600; }
-.k-md em { font-style: italic; color: var(--qahwa-fg-2); }
-
-/* withheld / private boundary */
-.k-withheld { border: 1px dashed var(--qahwa-border-strong); padding: 16px var(--k-pad);
-  display: flex; flex-direction: column; gap: 7px; background: var(--qahwa-surface); }
-.k-withheld-t { font: 600 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); display: flex; align-items: center; gap: 8px; }
-.k-withheld-d { font: 400 12px/1.5 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-3); }
-
-/* sign-in */
-.k-lock { height: 100%; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 0 32px 40px; gap: 0; background: var(--qahwa-canvas);
-  position: relative; text-align: center; }
-.k-lock-mark { width: 64px; height: 64px; margin-bottom: 26px; }
-.k-lock-word { font: 600 30px/1 var(--qahwa-font-ui); letter-spacing: -0.01em;
-  color: var(--qahwa-fg-1); }
-.k-lock-sub { font: 500 11px/1.4 var(--qahwa-font-ui); letter-spacing: 0.18em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); margin-top: 12px; }
-.k-lock-line { font: 400 14px/1.6 var(--qahwa-font-ui); font-style: italic;
-  color: var(--qahwa-fg-2); margin-top: 34px; max-width: 260px; text-wrap: pretty; }
-.k-lock-foot { position: absolute; left: 32px; right: 32px; bottom: 54px;
-  display: flex; flex-direction: column; gap: 14px; }
-.k-google { display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 14px; border: 1px solid var(--qahwa-border-strong); background: var(--qahwa-canvas);
-  color: var(--qahwa-fg-1); font: 500 13px/1 var(--qahwa-font-ui); cursor: pointer; }
-.k-google:active { background: var(--qahwa-surface); }
-
-/* offline banner */
-.k-offline { display: flex; align-items: center; gap: 8px; padding: 7px var(--k-pad);
-  background: var(--qahwa-fg-1); color: var(--qahwa-canvas);
-  font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.12em; text-transform: uppercase; }
-
-.k-divide { height: 1px; background: var(--qahwa-border); }
-
-/* income overview cards */
-.k-ovgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.k-ovcard { border: 1px solid var(--qahwa-border); background: var(--qahwa-canvas);
-  padding: 11px 13px 12px; display: flex; flex-direction: column; gap: 6px; }
-.k-ov-val { font: 600 18px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
-  color: var(--qahwa-fg-1); }
-[data-density="compact"] .k-ov-val { font-size: 17px; }
-
-/* bucket rings */
-.k-ring-row { display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
-  background: transparent; border: 0; cursor: pointer; padding: 11px 14px; }
-.k-ring-row:active { background: var(--qahwa-surface); }
-.k-ring-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.k-ring-name { font: 600 13px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-ring-r { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
-
-/* open section divider (de-boxed layout) */
-.k-sec.div { border-top: 1px solid var(--qahwa-border); margin-top: var(--k-sec); padding-top: var(--k-sec); }
-
-/* cashflow figures — open, no boxes */
-.k-figs { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; }
-.k-fig { display: flex; flex-direction: column; gap: 7px; padding: 0 12px;
-  border-left: 1px solid var(--qahwa-border); }
-.k-fig:first-child { border-left: 0; padding-left: 0; }
-.k-fig:last-child { padding-right: 0; }
-.k-fig-tick { width: 20px; height: 2px; }
-.k-fig-val { font: 600 16px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1; color: var(--qahwa-fg-1); }
-[data-density="compact"] .k-fig-val { font-size: 15px; }
-
-/* open bucket-ring list (no outer panel) */
-.k-rings-open .k-ring-row { padding-left: 0; padding-right: 0; }
-.k-rings-open .k-ring-row + .k-ring-row { border-top: 1px solid var(--qahwa-border); }
-
-/* savings goals — horizontal rail of ring cards (full-bleed, snap) */
-.k-goalscroll { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity;
-  margin: 0 calc(-1 * var(--k-pad)); padding: 2px var(--k-pad) 5px;
-  scroll-padding-inline: var(--k-pad); /* keep snap from eating the leading gutter */
-  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
-.k-goalscroll::-webkit-scrollbar { width: 0; height: 0; }
-.k-goalcard { flex: 0 0 138px; scroll-snap-align: start; background: var(--qahwa-canvas);
-  border: 1px solid var(--qahwa-border); cursor: pointer; padding: 16px 12px 14px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-goalcard:active { background: var(--qahwa-surface); }
-.k-goalcard-ring { position: relative; display: inline-flex; }
-.k-goalcard-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-.k-goalcard-check svg { width: 22px; height: 22px; display: block; }
-.k-goalcard-name { font: 600 13px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
-  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-.k-goalcard-pct { font-size: 13px; font-weight: 600; line-height: 1; }
-.k-goalcard-amt { font-size: 11px; color: var(--qahwa-fg-1); white-space: nowrap;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-
-/* bucket ring-card grid — circular showcase of each goal */
-.k-bkgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-.k-bkcard { background: var(--qahwa-canvas); border: 1px solid var(--qahwa-border);
-  padding: 16px 12px 14px; display: flex; flex-direction: column; align-items: center;
-  gap: 9px; text-align: center; cursor: pointer; -webkit-appearance: none; appearance: none;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-bkcard:active { background: var(--qahwa-surface); }
-.k-bkring { position: relative; display: inline-flex; }
-.k-bkring-lbl { position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 1px; }
-.k-bkring-pct { font: 600 17px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1; }
-.k-bkring-sub { font: 600 7px/1 var(--qahwa-font-ui); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); }
-.k-bkring-check svg { width: 24px; height: 24px; display: block; }
-.k-bkcard-name { font: 600 13px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1);
-  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-bkcard-amt { font: 500 12px/1.2 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
-  color: var(--qahwa-fg-1); }
-.k-bkcard-cap { font: 500 10px/1.3 var(--qahwa-font-ui); letter-spacing: 0.02em;
-  color: var(--qahwa-fg-3); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* colour swatch picker (edit bucket sheet) */
-.k-swatchrow { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
-.k-swatchbtn { width: 34px; height: 34px; border: 1px solid var(--qahwa-border); cursor: pointer;
-  -webkit-appearance: none; appearance: none; padding: 0;
-  transition: box-shadow var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-swatchbtn.on { box-shadow: 0 0 0 2px var(--qahwa-canvas), 0 0 0 4px var(--qahwa-fg-1); }
-
-/* paused goals sit in the same grid, just dialled back */
-.k-bkcard.paused { background: var(--qahwa-surface); border-style: dashed; }
-.k-bkcard.paused .k-bkcard-name, .k-bkcard.paused .k-bkcard-amt { color: var(--qahwa-fg-2); }
-.k-bkcard.paused .k-bkcard-cap { letter-spacing: 0.1em; text-transform: uppercase; }
-
-.fade-in { animation: kin var(--qahwa-motion-slow) var(--qahwa-ease); }
-@keyframes kin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-/* =========================================================================
-   Keela — the journal (notes + memory)
-   ========================================================================= */
-.k-masthead { padding: 16px var(--k-pad) 0; }
-.k-mast-row { display: flex; align-items: center; gap: 11px; }
-.k-mast-word { font: 600 21px/1 var(--qahwa-font-ui); letter-spacing: -0.01em; color: var(--qahwa-fg-1); }
-.k-mast-sub { margin-left: auto; font: 500 10px/1.3 var(--qahwa-font-data); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); white-space: nowrap; }
-.k-epigraph { font: 400 16px/1.62 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-2);
-  text-wrap: pretty; margin: 17px 0 0; }
-[data-density="compact"] .k-epigraph { font-size: 15px; }
-
-.k-ktabs { display: flex; gap: 24px; padding: 0 var(--k-pad); margin-top: 22px;
-  border-bottom: 1px solid var(--qahwa-border); }
-.k-ktab { padding: 14px 0; font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); cursor: pointer; background: transparent;
-  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  transition: color var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-ktab.on { color: var(--qahwa-fg-1); border-bottom-color: var(--qahwa-accent); }
-
-/* notes — journal entries */
-.k-thread { padding: 4px 0 0; margin: 0 var(--k-pad); }
-.k-entry { position: relative; display: block; width: 100%; text-align: left; cursor: pointer;
-  background: transparent; border: 0; border-top: 1px solid var(--qahwa-border); padding: 20px 0; }
-.k-entry:first-child { border-top: 0; }
-.k-entry-date { font: 500 10px/1 var(--qahwa-font-data); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--qahwa-fg-3); display: inline-flex; align-items: center; gap: 8px; }
-.k-entry.recent .k-entry-date { color: var(--qahwa-accent); }
-.k-entry-date::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: transparent; border: 1px solid var(--qahwa-border-strong); }
-.k-entry.recent .k-entry-date::before { background: var(--qahwa-accent); border-color: var(--qahwa-accent); }
-.k-entry-title { font: 600 16px/1.3 var(--qahwa-font-ui); color: var(--qahwa-fg-1); margin: 8px 0 7px; }
-.k-entry-sum { font: 400 14px/1.55 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-2);
-  text-wrap: pretty; }
-.k-entry-more { font: 600 9px/1 var(--qahwa-font-ui); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--qahwa-accent); margin-top: 11px; display: inline-flex; align-items: center; gap: 5px;
-  white-space: nowrap; }
-
-/* memory — passages */
-.k-mem { margin: 0 var(--k-pad); padding-top: 8px; }
-.k-mem-sec { padding: 22px 0; border-top: 1px solid var(--qahwa-border); }
-.k-mem-sec:first-child { border-top: 0; padding-top: 6px; }
-.k-mem-head { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
-.k-mem-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--qahwa-accent); flex: none; }
-.k-mem-name { font: 600 11px/1 var(--qahwa-font-ui); letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--qahwa-accent); }
-
-/* sealed (private boundary) */
-.k-sealed { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
-  padding: 32px var(--k-pad) 10px; margin: 6px var(--k-pad) 0; border-top: 1px solid var(--qahwa-border); }
-.k-sealed-t { font: 600 10px/1 var(--qahwa-font-ui); letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--qahwa-fg-3); }
-.k-sealed-d { font: 400 13px/1.6 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-3);
-  max-width: 252px; text-wrap: pretty; }
-
-/* reading view */
-.k-read { padding: 10px var(--k-pad) 0; }
-.k-read-date { font: 500 11px/1 var(--qahwa-font-data); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--qahwa-accent); }
-.k-read-title { font: 600 25px/1.2 var(--qahwa-font-ui); letter-spacing: -0.01em; color: var(--qahwa-fg-1);
-  margin: 14px 0 18px; text-wrap: balance; }
-.k-read .k-md { font-size: 15px; line-height: 1.7; }
-.k-read .k-md p { margin-bottom: 15px; }
-.k-read-sig { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--qahwa-border);
-  display: flex; align-items: center; gap: 9px; }
-.k-read-sig-word { font: 400 14px/1 var(--qahwa-font-ui); font-style: italic; color: var(--qahwa-fg-2); }
-
-/* =========================================================================
-   ASSETS — portfolios & holdings (the overhaul)
-   ========================================================================= */
-/* portfolio cards — one per row, value + goal progress */
-.k-pflist { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-.k-pfcard { width: 100%; text-align: left; background: var(--qahwa-canvas);
-  border: 1px solid var(--qahwa-border); padding: 14px 14px 13px; cursor: pointer;
-  -webkit-appearance: none; appearance: none; display: flex; flex-direction: column; gap: 10px;
-  transition: background var(--qahwa-motion-fast) var(--qahwa-ease); }
-.k-pfcard:active { background: var(--qahwa-surface); }
-.k-pfcard-top { display: flex; align-items: center; gap: 9px; }
-.k-pfcard-name { font: 600 14px/1.2 var(--qahwa-font-ui); color: var(--qahwa-fg-1); flex: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-pfcard-count { font: 500 10px/1 var(--qahwa-font-ui); letter-spacing: 0.04em;
-  color: var(--qahwa-fg-3); flex: none; }
-.k-pfcard-val { font: 600 22px/1 var(--qahwa-font-data); font-feature-settings: "tnum" 1;
-  color: var(--qahwa-fg-1); letter-spacing: -0.01em; }
-.k-pfcard-sub { font: 500 11px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3); margin-left: 7px; }
-.k-pfcard-meta { display: flex; justify-content: space-between; align-items: baseline; }
-
-/* holding row — units / avg cost sit in the subtitle */
-.k-hold-units { font: 500 10px/1 var(--qahwa-font-data); color: var(--qahwa-fg-3);
-  letter-spacing: 0.02em; }

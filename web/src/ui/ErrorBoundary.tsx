@@ -9,7 +9,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { err: Err
   render() {
     if (this.state.err) {
       return (
-        <div className="k-root" data-theme="light" data-density="compact">
+        <div className="k-root" data-theme="light">
           <div
             style={{
               minHeight: '100vh',
@@ -22,11 +22,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { err: Err
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--qahwa-fg-1)' }}>Something slipped</div>
-            <div style={{ fontSize: 13, maxWidth: 280, fontStyle: 'italic', color: 'var(--qahwa-fg-2)' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#2A2521' }}>Something slipped</div>
+            <div style={{ fontSize: 13, maxWidth: 280, fontStyle: 'italic', color: '#7A7163' }}>
               Keela hit an unexpected error drawing this view. Your data is safe.
             </div>
-            <button className="k-btn" onClick={() => location.reload()}>Reload</button>
+            <button onClick={() => location.reload()} style={{ border: 'none', borderRadius: 14, padding: '12px 22px', background: '#C4623A', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Reload</button>
           </div>
         </div>
       )
