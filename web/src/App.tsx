@@ -34,7 +34,10 @@ function TabBar({ tab, onChange }: { tab: string; onChange: (v: string) => void 
   return (
     <nav style={{
       position: 'fixed', left: 16, right: 16, zIndex: 75,
-      bottom: 'calc(14px + env(safe-area-inset-bottom))',
+      // Float just above the home-indicator zone — don't STACK a gap on top of the
+      // safe inset (that left ~48px of dead space on notch/island phones). Sit a
+      // touch inside the inset so the pill hugs the bottom; 12px floor for flat-bottom devices.
+      bottom: 'max(12px, calc(env(safe-area-inset-bottom) - 8px))',
       display: 'flex', alignItems: 'center', gap: 3,
       background: th.tabbar, border: `1px solid ${th.line}`, borderRadius: 24, padding: 7,
       boxShadow: '0 12px 34px rgba(30,22,12,.16)',

@@ -62,7 +62,7 @@ body { overscroll-behavior-y: none; }
 /* every screen clears the status bar at the top and the floating tab bar + home
    indicator at the bottom. Content scrolls UP under the status bar, where the
    .k-topfade scrim dissolves it (iOS scroll-edge effect). */
-.k-screen { padding: calc(var(--k-safetop) + 4px) 0 calc(116px + env(safe-area-inset-bottom)); }
+.k-screen { padding: calc(var(--k-safetop) + 4px) 0 calc(94px + env(safe-area-inset-bottom)); }
 
 /* Frosted scroll-edge at the top: a fixed scrim that is opaque canvas under the
    status bar and blurs+fades content to clear just below it, so nothing cuts off
@@ -70,7 +70,7 @@ body { overscroll-behavior-y: none; }
    keeps the header tappable through it. */
 .k-topfade {
   position: absolute; top: 0; left: 0; right: 0; z-index: 60; pointer-events: none;
-  height: calc(var(--k-safetop) + 16px);
+  height: calc(var(--k-safetop) + 8px);
   background: linear-gradient(to bottom,
     var(--k-bg) 44%, color-mix(in srgb, var(--k-bg) 55%, transparent) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);

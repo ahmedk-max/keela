@@ -442,7 +442,9 @@ export function Fab({ onClick }) {
   return (
     <button className="k-fab-in" onClick={onClick} aria-label="Add transaction" style={{
       position: 'fixed', right: 'var(--k-pad)', zIndex: 76,
-      bottom: 'calc(96px + env(safe-area-inset-bottom))',
+      // Ride 81px above the tab-bar's bottom edge (59px pill + 22px gap) so it tracks
+      // the bar wherever the safe-inset puts it — must mirror TabBar's bottom in App.tsx.
+      bottom: 'calc(81px + max(12px, calc(env(safe-area-inset-bottom) - 8px)))',
       width: 54, height: 54, borderRadius: '50%', display: 'grid', placeItems: 'center',
       background: th.accent, border: 'none', color: th.onAccent, cursor: 'pointer',
       boxShadow: '0 8px 22px -6px rgba(196,98,58,.6)', WebkitAppearance: 'none',
