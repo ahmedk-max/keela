@@ -7,6 +7,20 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
     />
     <meta name="theme-color" content="#ECE5D6" />
+    <!-- Apply the saved theme BEFORE first paint. In an installed iOS PWA the
+         status-bar band (status-bar-style: default) is painted from theme-color,
+         which iOS reads at launch — before React mounts. Without this, dark mode
+         launches with a light status-bar band. Also kills the light load flash. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('keela.theme') || 'light';
+          document.documentElement.setAttribute('data-theme', t);
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', t === 'dark' ? '#16120F' : '#ECE5D6');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" />
