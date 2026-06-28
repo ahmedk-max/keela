@@ -225,7 +225,8 @@ server.registerTool(
     title: 'Write / update memory',
     description:
       "Upsert one of Keela's memory sections. private:true marks State-of-Mind/counsel content that the " +
-      'PWA must never render. Doc id is derived from the section name, so re-using a section updates it.',
+      'PWA must never render. Re-using a section name updates that section in place (matched by name), ' +
+      'whatever its doc id.',
     inputSchema: {
       section: z.string().min(1).describe('Section name, e.g. "Patterns" or "The pact"'),
       body: z.string().min(1).describe('The memory content, markdown'),
@@ -234,10 +235,18 @@ server.registerTool(
     },
   },
   async ({ section, body, scope, private: isPrivate }) => {
-    const id = `${scope === 'archive' ? 'arc' : 'hot'}-${memSlug(section)}`
+    // Match an existing section by name first. The seeded docs use numbered ids
+    // (`hot-04-…`) that memSlug can't reproduce, so deriving a fresh slug id would
+    // spawn a duplicate instead of updating in place. Fall back to the slug for new sections.
+    const want = section.trim().toLowerCase()
+    const snap = await db.collection('memory').get()
+    const hit = snap.docs.find(
+      (d) => (d.data().section || '').trim().toLowerCase() === want && (d.data().scope || 'hot') === scope,
+    )
+    const id = hit ? hit.id : `${scope === 'archive' ? 'arc' : 'hot'}-${memSlug(section)}`
     await db.doc(`memory/${id}`).set({
       scope, section, body, private: !!isPrivate, updatedAt: Timestamp.now(),
-    })
+    }, { merge: true })
     return text(`Updated memory "${section}" (${scope}${isPrivate ? ', private' : ''}). id=${id}`)
   },
 )
