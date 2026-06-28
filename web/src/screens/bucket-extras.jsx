@@ -35,7 +35,8 @@ export function bucketStats(goals, profile) {
   const remaining = ongoing.reduce((s, g) => s + Math.max(0, g.target - goalBalance(g)), 0)
 
   const requiredMonthly = active.reduce((s, g) => s + monthlyNeeded(g), 0)
-  const saveBudget = Math.round((profile.salary || 0) * (profile.split?.save || 0) / 100)
+  // 70% of total recurring income (matches the Home summary), not just base salary
+  const saveBudget = Math.round((profile.monthlyIncome ?? profile.salary ?? 0) * (profile.split?.save || 0) / 100)
   const headroom = saveBudget - requiredMonthly
 
   return {

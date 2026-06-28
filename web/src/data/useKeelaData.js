@@ -218,6 +218,7 @@ export function buildData(raw) {
     name: 'Ahmed',
     currency: p.currency || 'SAR',
     salary: p.salary || 0,
+    monthlyIncome, // salary + recurring income entries; matches cashflow.income so the save budget agrees with Home
     payday: p.payday || 27,
     split: p.split || { save: 70, live: 30 },
     pactStart: p.pactStart || '2024-10',
