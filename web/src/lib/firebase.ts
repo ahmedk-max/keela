@@ -23,6 +23,6 @@ export const googleProvider = new GoogleAuthProvider()
 // of this list. This list just rejects non-owner sign-ins cleanly in the UI instead
 // of letting a stranger authenticate and hang on a permission-denied blank app.
 // Add an email here to grant access. Keep lowercase.
-export const ALLOWED_EMAILS = ['classicd3v@gmail.com']
+export const ALLOWED_EMAILS = ['ahmedksaedi@gmail.com']
 export const isAllowedUser = (u: { email?: string | null } | null) =>
   !!u && ALLOWED_EMAILS.includes((u.email || '').toLowerCase())
