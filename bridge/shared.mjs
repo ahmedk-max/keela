@@ -38,7 +38,10 @@ export function computeSummary(raw, now = new Date()) {
   ]
   const monthlyIncome = recurringIncome.filter((x) => x.recurring).reduce((s, x) => s + x.amount, 0)
 
-  const saved = monthlyIncome - fixed - subs - variableSpent
+  // Savings is capped at the pact target (saveTarget%). Unspent variable early in the
+  // cycle is living money, not extra savings — don't let it inflate the headline.
+  const savedCap = Math.round((monthlyIncome * saveTarget) / 100)
+  const saved = Math.min(monthlyIncome - fixed - subs - variableSpent, savedCap)
   const rate = monthlyIncome > 0 ? Math.round((saved / monthlyIncome) * 100) : 0
   const liveBudget = Math.round((monthlyIncome * (100 - saveTarget)) / 100)
   const variableBudget = Math.max(0, liveBudget - fixed - subs) // room for variable spend this cycle
