@@ -67,7 +67,9 @@ export function Home({ data, nav }) {
   const latest = meetings[0]
   const hint = whispers(data)[0]
 
-  const flowTotal = Math.max(1, cf.saved + expenses + cf.variableSpent)
+  // Monthly flow is the PLAN: variable shows the full allowance (budget), not spend-to-date,
+  // so the breakdown sums to income and doesn't move as you spend. Spend lives in the hero.
+  const flowTotal = Math.max(1, cf.saved + expenses + cf.variableBudget)
   const iconBtn = {
     width: 38, height: 38, border: `1px solid ${th.line}`, borderRadius: '50%', background: th.card,
     color: th.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
@@ -128,13 +130,13 @@ export function Home({ data, nav }) {
           <StackedBar height={14} segs={[
             { w: (cf.saved / flowTotal) * 100, color: th.green },
             { w: (expenses / flowTotal) * 100, color: th.loss },
-            { w: (cf.variableSpent / flowTotal) * 100, color: th.amber },
+            { w: (cf.variableBudget / flowTotal) * 100, color: th.amber },
           ]} />
           <div style={{ display: 'flex', gap: 14, marginTop: 16 }}>
             {[
               { c: th.green, l: `Saved ${cf.rate}%`, v: fmt(cf.saved) },
               { c: th.loss, l: 'Expenses', v: fmt(expenses) },
-              { c: th.amber, l: 'Variable', v: fmt(cf.variableSpent) },
+              { c: th.amber, l: 'Variable', v: fmt(cf.variableBudget) },
             ].map((f, i) => (
               <div key={i} style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
