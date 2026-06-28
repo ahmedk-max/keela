@@ -1,7 +1,7 @@
 /* Keela — Home: daily-driver. "Left to spend" hero · monthly flow · runway ·
    goals rail · latest note. "Warm" language: dark espresso hero on warm sand. */
 import { useTheme } from '../lib/theme'
-import { Mark, Ring, Sparkline, StackedBar, Progress, Pill, KeelaWhisper, CountUp, Icons } from '../ui/primitives'
+import { Mark, Ring, Sparkline, StackedBar, Progress, Pill, KeelaWhisper, CountUp, Icons, sectionStyle } from '../ui/primitives'
 import { whispers } from '../lib/whispers'
 import { fmt, fmtDate, monthsBetween, NOW_MONTH } from '../lib/format'
 
@@ -74,9 +74,9 @@ export function Home({ data, nav }) {
     width: 38, height: 38, border: `1px solid ${th.line}`, borderRadius: '50%', background: th.card,
     color: th.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   }
-  const secStyle = { padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }
+  const secStyle = sectionStyle(th)
   const headStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }
-  const dim = 'rgba(243,238,227,.6)'
+  const dim = th.onDarkDim
 
   return (
     <div className="k-screen">
@@ -99,7 +99,7 @@ export function Home({ data, nav }) {
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(243,238,227,.55)' }}>Left to spend</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 12 }}>
-                <CountUp value={variableLeft} style={{ fontSize: 42, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: over ? '#F08A7E' : th.onDark }} />
+                <CountUp value={variableLeft} style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: over ? '#F08A7E' : th.onDark }} />
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(243,238,227,.5)' }}>SAR</span>
               </div>
             </div>
@@ -148,7 +148,9 @@ export function Home({ data, nav }) {
             ))}
           </div>
           <div style={{ fontSize: 11.5, color: th.ink3, marginTop: 14 }}>
-            {cf.rate >= cf.target ? '▲ +' : '▼ −'}{Math.abs(cf.rate - cf.target)} vs {cf.target} pact
+            {cf.rate === cf.target
+              ? `On your ${cf.target} pact`
+              : `${cf.rate > cf.target ? '▲ +' : '▼ −'}${Math.abs(cf.rate - cf.target)} vs ${cf.target} pact`}
           </div>
           {/* Vow timeline — visualize progress through the pact; months left is the headline */}
           <div style={{ marginTop: 12 }}>
@@ -222,12 +224,12 @@ export function Home({ data, nav }) {
 
         {/* KEELA NOTE */}
         {latest && (
-          <div style={{ marginTop: 22 }}>
+          <div style={{ marginTop: 24 }}>
             <div style={{ ...headStyle, padding: '0 2px' }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: th.ink }}>Keela&rsquo;s latest note</span>
               <button onClick={() => nav.goTab('keela')} style={{ border: 'none', background: 'none', fontSize: 12, color: th.ink2, cursor: 'pointer' }}>All notes ›</button>
             </div>
-            <button onClick={() => nav.openMeeting(latest.id)} style={{ display: 'block', width: '100%', textAlign: 'left', background: th.accentSoft, border: 'none', borderRadius: 24, padding: '18px 20px', cursor: 'pointer' }}>
+            <button onClick={() => nav.openMeeting(latest.id)} style={{ display: 'block', width: '100%', textAlign: 'left', background: th.accentSoft, border: 'none', borderRadius: 22, padding: '18px 20px', cursor: 'pointer' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
                 <span style={{ width: 20, height: 20, borderRadius: 7, background: th.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Mark size={11} color="#fff" /></span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: th.accent }}>Keela</span>

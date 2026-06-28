@@ -7,7 +7,7 @@ import { useTheme, tint } from '../lib/theme'
 import { fmt, fmtDate, fmtDay, MONTH_ABBR } from '../lib/format'
 import { CAT, MISC, UPCOMING_COLOR, subLogo, getCat } from '../lib/icons'
 import {
-  Segmented, Donut, Ring, Bars, Progress, CatTile, CountUp, KeelaWhisper, Empty, Icons,
+  Segmented, Donut, Ring, Bars, Progress, CatTile, CountUp, KeelaWhisper, Empty, Icons, sectionStyle,
 } from '../ui/primitives'
 import { spendStats } from './spending-extras'
 import { whispers } from '../lib/whispers'
@@ -119,7 +119,6 @@ function ListRow({ tile, name, sub, right, rightSub, onClick, tag, dimName }) {
 }
 
 
-const secStyle = (th) => ({ padding: '22px 0 2px', marginTop: 16, borderTop: `1px solid ${th.line}` })
 const dayHead = (th) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 4px 8px' })
 const dayLbl = (th) => ({ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3 })
 
@@ -207,7 +206,7 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
       </div>
 
       {/* DAILY BARS */}
-      <div style={{ padding: '22px 0 2px', marginTop: 16, borderTop: `1px solid ${th.line}` }}>
+      <div style={sectionStyle(th)}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: th.ink2 }}>Daily spend</span>
           {pacePct != null && (
@@ -224,7 +223,7 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
 
       {/* WHERE IT WENT — category list (tap a row to set a budget) */}
       {cats.length > 0 && (
-        <div style={{ padding: '22px 0 2px', marginTop: 16, borderTop: `1px solid ${th.line}` }}>
+        <div style={sectionStyle(th)}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: th.ink2 }}>Where it went</span>
             <span style={{ fontSize: 11, color: th.ink3 }}>tap to set a budget</span>
@@ -291,9 +290,13 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
   )
 }
 
-/* ---------- Renewal calendar (next 30 days of monthly bills/subs) ---------- */
+/* ---------- Renewal calendar (next 30 days of monthly bills/subs) ----------
+   The dated list duplicates the grouped "All recurring" section below it, so the
+   per-item rows are collapsed by default — the timeline + total carry the glanceable
+   value, and "Show N renewals" reveals the dated breakdown on demand. */
 function RenewalCalendar({ bills, nav }) {
   const th = useTheme()
+  const [open, setOpen] = React.useState(false)
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const nextRenewal = (day) => {
     const mk = (yy, mm) => { const last = new Date(yy, mm + 1, 0).getDate(); return new Date(yy, mm, Math.min(day, last)) }
@@ -310,7 +313,7 @@ function RenewalCalendar({ bills, nav }) {
   const total = items.reduce((s, i) => s + i.amount, 0)
   const rel = (n) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n}d`)
   return (
-    <div style={{ padding: '22px 0 2px', marginTop: 16, borderTop: `1px solid ${th.line}` }}>
+    <div style={sectionStyle(th)}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: th.ink2 }}>Renewals · next 30 days</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: th.ink }}>{fmt(total)}<span style={{ fontSize: 11, color: th.ink3, marginLeft: 4 }}>SAR</span></span>
@@ -327,7 +330,15 @@ function RenewalCalendar({ bills, nav }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: th.ink3, marginBottom: 4 }}>
         <span>today</span><span>in 30 days</span>
       </div>
-      {items.map((i) => {
+      <button onClick={() => setOpen((o) => !o)} style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12,
+        border: 'none', background: th.card2, borderRadius: 12, padding: '10px 0', cursor: 'pointer', fontFamily: 'inherit',
+        fontSize: 12, fontWeight: 700, color: th.ink2,
+      }}>
+        {open ? 'Hide schedule' : `Show ${items.length} renewal${items.length === 1 ? '' : 's'}`}
+        <span style={{ fontSize: 14, lineHeight: 0, transform: open ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform .2s' }}>›</span>
+      </button>
+      {open && items.map((i) => {
         const logo = i.sub ? subLogo(i.name) : null
         const meta = getCat(i.cat) || CAT.Other
         const color = logo ? logo.color : meta.color
@@ -358,7 +369,7 @@ function RenewalCalendar({ bills, nav }) {
 /* ============ RECURRING ============ */
 function RecurringView({ bills, cf, nav }) {
   const th = useTheme()
-  const dim = 'rgba(243,238,227,.55)'
+  const dim = th.onDarkDim
   const monthly = bills.filter((b) => b.type === 'monthly')
   const yearly = bills.filter((b) => b.type === 'yearly')
   const subs = monthly.filter((b) => b.sub)

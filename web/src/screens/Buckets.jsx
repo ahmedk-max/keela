@@ -5,6 +5,7 @@ import React from 'react'
 import { useTheme, SWATCHES } from '../lib/theme'
 import {
   Ring, StackedBar, Progress, Pill, Segmented, Empty, Sheet, Field, SheetSave, SheetDelete, DetailShell, CountUp,
+  sectionStyle, actionPrimary, actionGhost, chipBtn,
 } from '../ui/primitives'
 import { entryMeta } from '../lib/icons'
 import { fmt, fmtDate, MONTH_ABBR } from '../lib/format'
@@ -21,7 +22,7 @@ function statusPill(status, th) {
   return { label: 'Active', bg: th.card2, fg: th.ink2 }
 }
 
-const secDivider = (th) => ({ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` })
+const secDivider = sectionStyle // shared rhythm — see ui/primitives
 const secTitle = (th) => ({ fontSize: 15, fontWeight: 700, color: th.ink })
 
 /* ---------- Ring goal card (used by every grid) ---------- */
@@ -94,7 +95,7 @@ function SavingView({ goals, allGoals, profile, nav }) {
   const activeSorted = [...active].sort((a, b) => (goalBalance(b) / b.target) - (goalBalance(a) / a.target))
   const inProgress = [...activeSorted, ...paused]
   const allocSegs = alloc.map((a) => ({ w: netSavings > 0 ? (a.amount / netSavings) * 100 : 0, color: a.color }))
-  const dim = 'rgba(243,238,227,.5)'
+  const dim = th.onDarkDim
 
   return (
     <div>
@@ -106,7 +107,7 @@ function SavingView({ goals, allGoals, profile, nav }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <CountUp value={netSavings} style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1 }} />
+            <CountUp value={netSavings} style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1 }} />
             <span style={{ fontSize: 13, color: dim, fontWeight: 600 }}>SAR</span>
           </span>
           <span style={{ fontSize: 12, color: dim }}>{remaining > 0 ? fmt(remaining) + ' to go' : 'all funded'}</span>
@@ -143,7 +144,10 @@ function SavingView({ goals, allGoals, profile, nav }) {
       </div>
 
       {/* GOALS — active first (closest to done), paused trailing & muted */}
-      <div style={{ ...secTitle(th), margin: '24px 2px 14px' }}>Goals</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 2px 14px' }}>
+        <span style={secTitle(th)}>Goals</span>
+        <button onClick={() => nav.addBucket()} style={{ border: 'none', background: 'none', fontSize: 12, fontWeight: 700, color: th.accent, cursor: 'pointer', fontFamily: 'inherit' }}>+ New</button>
+      </div>
       {inProgress.length
         ? <RingGrid goals={inProgress} nav={nav} />
         : <Empty>No goals in progress. Everything is funded.</Empty>}
@@ -329,12 +333,7 @@ export function BucketDetail({ g, onClose, onMove, onEdit }) {
   ]
   const canMove = balance > 0 || funded
 
-  const editBtn = (
-    <button onClick={() => onEdit(g.id)} style={{
-      border: 'none', background: th.card2, borderRadius: 999, padding: '8px 17px',
-      fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit',
-    }}>Edit</button>
-  )
+  const editBtn = <button onClick={() => onEdit(g.id)} style={chipBtn(th)}>Edit</button>
 
   return (
     <DetailShell onClose={onClose} right={editBtn}>
@@ -378,14 +377,8 @@ export function BucketDetail({ g, onClose, onMove, onEdit }) {
       {/* actions */}
       {canMove && (
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <button onClick={() => onMove(g.id, 'deposit')} style={{
-            flex: 1, border: 'none', borderRadius: 16, padding: 14, background: th.accent,
-            color: th.onAccent, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>+ Deposit</button>
-          <button onClick={() => onMove(g.id, funded ? 'spend' : 'withdrawal')} style={{
-            flex: 1, border: `1.5px solid ${th.line}`, borderRadius: 16, padding: 14, background: th.card,
-            color: th.ink, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>− {funded ? 'Spend' : 'Withdraw'}</button>
+          <button onClick={() => onMove(g.id, 'deposit')} style={actionPrimary(th)}>+ Deposit</button>
+          <button onClick={() => onMove(g.id, funded ? 'spend' : 'withdrawal')} style={actionGhost(th)}>− {funded ? 'Spend' : 'Withdraw'}</button>
         </div>
       )}
 
@@ -441,8 +434,9 @@ export function BucketSheet({ goal, mode, onClose, onSave }) {
 /* ---------- Edit bucket sheet (with colour swatch picker) ---------- */
 export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
   const th = useTheme()
+  const isNew = !goal.id
   const [name, setName] = React.useState(goal.name)
-  const [target, setTarget] = React.useState(String(goal.target))
+  const [target, setTarget] = React.useState(goal.target ? String(goal.target) : '')
   const [tdate, setTdate] = React.useState(goal.targetDate)
   const [status, setStatus] = React.useState(goal.status || 'active')
   const [color, setColor] = React.useState(goal.color || SWATCHES[0])
@@ -453,7 +447,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
   const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3 }
 
   return (
-    <Sheet title={'Edit · ' + goal.name} onClose={onClose}>
+    <Sheet title={isNew ? 'New bucket' : 'Edit · ' + goal.name} onClose={onClose}>
       {(close) => (
         <>
           <Field value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
@@ -486,8 +480,8 @@ export function EditBucketSheet({ goal, onClose, onSave, onDelete }) {
               if (!valid) return
               onSave(goal.id, { name: name.trim(), target: parseInt(target, 10), targetDate: tdate, status, color, note: note.trim() })
               close()
-            }}>Save changes</SheetSave>
-          <SheetDelete onClick={() => { onDelete(goal.id); close() }}>Delete bucket</SheetDelete>
+            }}>{isNew ? 'Create bucket' : 'Save changes'}</SheetSave>
+          {!isNew && <SheetDelete onClick={() => { onDelete(goal.id); close() }}>Delete bucket</SheetDelete>}
         </>
       )}
     </Sheet>

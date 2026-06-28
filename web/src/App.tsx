@@ -65,7 +65,6 @@ export default function App() {
   const { data, loading: dataLoading } = useKeelaData(!!user)
 
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('keela.theme') || 'light')
-  const [density] = useState<string>(() => localStorage.getItem('keela.density') || 'compact')
   const [tab, setTab] = useState<string>(() => localStorage.getItem('keela.tab') || 'home')
   const [spendSub, setSpendSub] = useState('tx')
   const [bucketSub, setBucketSub] = useState('saving')
@@ -80,10 +79,9 @@ export default function App() {
   // in dark mode and leaks white through the bottom safe-area (the tab-bar gap).
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    document.documentElement.setAttribute('data-density', density)
     const meta = document.querySelector('meta[name="theme-color"]')
     if (meta) meta.setAttribute('content', theme === 'dark' ? '#16120F' : '#ECE5D6')
-  }, [theme, density])
+  }, [theme])
   useEffect(() => { localStorage.setItem('keela.tab', tab) }, [tab])
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [tab])
 
@@ -125,7 +123,15 @@ export default function App() {
     else if (entry.type === 'withdrawal') await updateDoc(gref, { allocated: increment(-entry.amount) })
     else if (entry.type === 'spend') await updateDoc(gref, { spent: increment(entry.amount) })
   }
-  const editGoal = async (goalId: string, fields: any) => {
+  const editGoal = async (goalId: string | null, fields: any) => {
+    if (!goalId) {
+      await addDoc(collection(db, 'goals'), {
+        name: fields.name, target: fields.target, targetDate: fields.targetDate,
+        status: fields.status, color: fields.color, note: fields.note || null,
+        allocated: 0, spent: 0, createdAt: serverTimestamp(),
+      })
+      return
+    }
     await updateDoc(doc(db, 'goals', goalId), {
       name: fields.name, target: fields.target, targetDate: fields.targetDate,
       status: fields.status, color: fields.color, note: fields.note || null,
@@ -231,6 +237,7 @@ export default function App() {
     openPortfolio: (id: string) => setOverlay({ kind: 'portfolio', id }),
     openHolding: (id: string, portfolioId: string) => setOverlay({ kind: 'holding', id, portfolioId }),
     openMeeting: (id: string) => setOverlay({ kind: 'meeting', id }),
+    addBucket: () => setSheet({ kind: 'bucketEdit', goalId: null }),
     editBucket: (id: string) => setSheet({ kind: 'bucketEdit', goalId: id }),
     editCatBudget: (cat: string, cap: number) => setSheet({ kind: 'catBudget', cat, cap }),
     addPortfolio: () => setSheet({ kind: 'pfEdit', portfolio: null }),
@@ -305,7 +312,10 @@ export default function App() {
     else if (sheet?.kind === 'upcoming') sheetEl = <UpcomingSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveUpcoming(sheet.item, f)} onDelete={deleteUpcoming} />
     else if (sheet?.kind === 'wish') sheetEl = <WishlistSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveWish(sheet.item, f)} onDelete={deleteWish} />
     else if (sheet?.kind === 'bucketMove') sheetEl = <BucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} mode={sheet.mode} onClose={closeSheet} onSave={moveBucket} />
-    else if (sheet?.kind === 'bucketEdit') sheetEl = <EditBucketSheet goal={data.goals.find((g: any) => g.id === sheet.goalId)} onClose={closeSheet} onSave={editGoal} onDelete={deleteBucket} />
+    else if (sheet?.kind === 'bucketEdit') {
+      const blank = { id: null, name: '', target: 0, targetDate: NOW_MONTH, status: 'active', color: undefined, note: '' }
+      sheetEl = <EditBucketSheet goal={sheet.goalId ? data.goals.find((g: any) => g.id === sheet.goalId) : blank} onClose={closeSheet} onSave={editGoal} onDelete={deleteBucket} />
+    }
     else if (sheet?.kind === 'pfEdit') sheetEl = <PortfolioSheet portfolio={sheet.portfolio} onClose={closeSheet} onSave={savePortfolio} onDelete={deletePortfolio} />
     else if (sheet?.kind === 'holdEdit') sheetEl = <HoldingSheet holding={sheet.holding} portfolioId={sheet.portfolioId} portfolios={data.portfolios} onClose={closeSheet} onSave={saveHolding} onDelete={deleteHolding} />
     else if (sheet?.kind === 'holdAct') sheetEl = <ActivitySheet holding={sheet.holding} mode={sheet.mode} onClose={closeSheet} onSave={logActivity} />
@@ -318,9 +328,10 @@ export default function App() {
           <div className="k-scroll" ref={scrollRef}><div key={tab} className="fade-in">{screen}</div></div>
         </div>
         {overlayEl}
-        {/* Floating quick-add — the daily action, one thumb-tap from any tab.
-            Hidden while a detail overlay or sheet is open so it never overlaps. */}
-        {!overlay && !sheet && tab !== 'keela' && <Fab onClick={() => nav.addTx()} />}
+        {/* Floating quick-add — adds a transaction, so it only rides the two tabs where
+            that's the primary action (Home, Spend). Buckets/Assets have their own inline
+            create buttons; Keela is read-only. Hidden while an overlay/sheet is open. */}
+        {!overlay && !sheet && (tab === 'home' || tab === 'spending') && <Fab onClick={() => nav.addTx()} />}
         <TabBar tab={tab} onChange={goTab} />
         {sheetEl}
       </>
@@ -329,7 +340,7 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={themeFor(theme)}>
-      <div className="k-root" data-theme={theme} data-density={density}>
+      <div className="k-root" data-theme={theme}>
         {content}
       </div>
     </ThemeContext.Provider>

@@ -7,7 +7,7 @@ import React from 'react'
 import { useTheme, SWATCHES, tint } from '../lib/theme'
 import {
   CountUp, Sparkline, StackedBar, Progress, Pill, Segmented, Empty, DetailShell,
-  Sheet, Field, SheetSave, SheetDelete,
+  Sheet, Field, SheetSave, SheetDelete, sectionStyle, actionPrimary, actionGhost, chipBtn,
 } from '../ui/primitives'
 import { entryMeta } from '../lib/icons'
 import { fmt, fmtDate, MONTH_ABBR } from '../lib/format'
@@ -39,7 +39,7 @@ function Allocation({ th, items, total, label, sub }) {
   if (!items.length || total <= 0) return null
   const sorted = [...items].sort((a, b) => b.current - a.current)
   return (
-    <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+    <div style={sectionStyle(th)}>
       <SecHead th={th} label={label} sub={sub} />
       <StackedBar height={14} segs={sorted.map((a) => ({ w: (a.current / total) * 100, color: a.color }))} style={{ marginBottom: 16 }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -95,7 +95,7 @@ export function Assets({ data, nav }) {
   // cost-basis only: nothing is "invested vs current" — invested == balance.
   const pfItems = portfolios.map((p) => ({ id: p.id, name: p.name, current: p.value, color: p.color }))
 
-  const dim = 'rgba(243,238,227,.55)'
+  const dim = th.onDarkDim
 
   return (
     <div className="k-screen">
@@ -112,7 +112,7 @@ export function Assets({ data, nav }) {
         <div style={{ background: th.darkcard, borderRadius: 28, padding: '24px 22px', color: th.onDark, boxShadow: th.shadow }}>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: dim }}>Portfolio · SAR</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
-            <CountUp value={total} style={{ fontSize: 42, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: th.onDark }} />
+            <CountUp value={total} style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1, color: th.onDark }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 12.5 }}>
             <span style={{ color: dim }}>{holdings.length} holding{holdings.length === 1 ? '' : 's'}</span>
@@ -126,7 +126,7 @@ export function Assets({ data, nav }) {
           label="Allocation" sub={`${portfolios.length} portfolio${portfolios.length === 1 ? '' : 's'}`} />
 
         {/* PORTFOLIOS */}
-        <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+        <div style={sectionStyle(th)}>
           <SecHead th={th} label="Portfolios" action="+ New" onAction={() => nav.addPortfolio()} />
           {portfolios.length
             ? <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -166,9 +166,7 @@ export function PortfolioDetail({ p, onClose, onEdit, onAddHolding, onOpenHoldin
   const holdings = [...p.holdings].sort((a, b) => b.current - a.current)
   const allocItems = holdings.map((h) => ({ id: h.id, name: h.name, current: h.current, color: h.color }))
 
-  const editBtn = !p.isDefault && (
-    <button onClick={() => onEdit(p.id)} style={{ border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px', fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
-  )
+  const editBtn = !p.isDefault && <button onClick={() => onEdit(p.id)} style={chipBtn(th)}>Edit</button>
 
   return (
     <DetailShell onClose={onClose} right={editBtn}>
@@ -178,7 +176,7 @@ export function PortfolioDetail({ p, onClose, onEdit, onAddHolding, onOpenHoldin
         <span style={{ flex: 1, minWidth: 0, fontSize: 18, fontWeight: 800, color: th.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
         {p.isDefault && <Pill bg={th.card2} fg={th.ink2}>Unsorted</Pill>}
       </div>
-      <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{fmt(p.value)}</div>
+      <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-.03em', color: th.ink }}>{fmt(p.value)}</div>
 
       {p.target > 0 ? (
         <>
@@ -220,7 +218,7 @@ export function PortfolioDetail({ p, onClose, onEdit, onAddHolding, onOpenHoldin
         label="Allocation" sub={`${p.count} holding${p.count === 1 ? '' : 's'}`} />
 
       {/* holdings */}
-      <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+      <div style={sectionStyle(th)}>
         <SecHead th={th} label="Holdings" action="+ Add" onAction={onAddHolding} />
         {holdings.length
           ? holdings.map((h) => <HoldingRow key={h.id} th={th} h={h} onOpen={() => onOpenHolding(h.id)} />)
@@ -233,7 +231,7 @@ export function PortfolioDetail({ p, onClose, onEdit, onAddHolding, onOpenHoldin
 /* ---------- Holding detail ---------- */
 function ActivityList({ th, entries }) {
   return (
-    <div style={{ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` }}>
+    <div style={sectionStyle(th)}>
       <SecHead th={th} label="Activity" sub={String(entries.length)} />
       {entries.length ? entries.map((e, i) => {
         const m = entryMeta(e.type, th)
@@ -265,9 +263,7 @@ export function HoldingDetail({ h, portfolio, onClose, onEdit, onAct }) {
   const series = holdingSeries(h)
   const entries = [...h.entries].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-  const editBtn = (
-    <button onClick={onEdit} style={{ border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px', fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
-  )
+  const editBtn = <button onClick={onEdit} style={chipBtn(th)}>Edit</button>
 
   return (
     <DetailShell onClose={onClose} right={editBtn}>
@@ -311,15 +307,10 @@ export function HoldingDetail({ h, portfolio, onClose, onEdit, onAct }) {
 
       {/* action buttons: Edit + buy/sell or deposit/withdraw */}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <button onClick={() => onAct(isCash ? 'deposit' : 'buy')} style={{
-          flex: 1, border: 'none', borderRadius: 14, padding: 13, background: th.accent, color: th.onAccent,
-          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-        }}>+ {isCash ? 'DEPOSIT' : 'BUY'}</button>
+        <button onClick={() => onAct(isCash ? 'deposit' : 'buy')} style={actionPrimary(th)}>+ {isCash ? 'Deposit' : 'Buy'}</button>
         <button onClick={() => hasBalance && onAct(isCash ? 'withdraw' : 'sell')} style={{
-          flex: 1, border: `1px solid ${th.line}`, borderRadius: 14, padding: 13, background: th.card, color: th.ink2,
-          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          opacity: hasBalance ? 1 : 0.4, pointerEvents: hasBalance ? 'auto' : 'none',
-        }}>− {isCash ? 'WITHDRAW' : 'SELL'}</button>
+          ...actionGhost(th), opacity: hasBalance ? 1 : 0.4, pointerEvents: hasBalance ? 'auto' : 'none',
+        }}>− {isCash ? 'Withdraw' : 'Sell'}</button>
       </div>
 
       <ActivityList th={th} entries={entries} />

@@ -13,6 +13,29 @@ export const prefersReduced = () =>
   window.matchMedia &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/* ---------- Shared layout tokens — one source of truth for screen rhythm ----------
+   Every screen's horizontal gutter and bordered "section divider" come from here so
+   the vertical cadence and edge alignment stay identical across tabs. */
+export const GUTTER = 20
+export const sectionStyle = (th) => ({ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` })
+
+/* Detail-view action buttons (Deposit/Withdraw, Buy/Sell …) — paired primary +
+   ghost so the bucket and holding detail views render an identical action row. */
+export const actionPrimary = (th) => ({
+  flex: 1, border: 'none', borderRadius: 14, padding: 14, background: th.accent, color: th.onAccent,
+  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+})
+export const actionGhost = (th) => ({
+  flex: 1, border: `1.5px solid ${th.line}`, borderRadius: 14, padding: 14, background: th.card, color: th.ink,
+  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+})
+
+/* Small pill button used for the "Edit" affordance in every detail header. */
+export const chipBtn = (th) => ({
+  border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px',
+  fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit',
+})
+
 /* ---------- Brand mark (the four-circle Keela glyph) ---------- */
 export function Mark({ size = 30, color = 'currentColor', style }) {
   return (
@@ -331,7 +354,8 @@ export function DetailShell({ onClose, right, children }) {
   const th = useTheme()
   return (
     <div className="k-detail" style={{ background: th.bg }}>
-      <div style={{ flex: 'none', padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
+      {/* Flush at the top edge to match the list screens (.k-screen has 0 top padding). */}
+      <div style={{ flex: 'none', padding: `0 ${GUTTER}px 12px`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
           background: th.card2, borderRadius: 999, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
@@ -340,7 +364,7 @@ export function DetailShell({ onClose, right, children }) {
         </button>
         {right || null}
       </div>
-      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 22px calc(40px + env(safe-area-inset-bottom))' }}>{children}</div>
+      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: `6px ${GUTTER}px calc(40px + env(safe-area-inset-bottom))` }}>{children}</div>
     </div>
   )
 }
