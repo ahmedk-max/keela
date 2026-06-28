@@ -2,7 +2,7 @@
 import { useTheme } from '../lib/theme'
 import { Mark } from '../ui/primitives'
 
-export function Lock({ onSignIn }) {
+export function Lock({ onSignIn, denied }) {
   const th = useTheme()
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -18,12 +18,18 @@ export function Lock({ onSignIn }) {
       </div>
       <div style={{ position: 'absolute', left: 32, right: 32, bottom: 'max(40px, calc(env(safe-area-inset-bottom) + 28px))',
         display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {denied && (
+          <div style={{ borderRadius: 14, padding: '12px 14px', background: th.accentSoft,
+            fontSize: 12.5, lineHeight: 1.5, color: th.loss, fontWeight: 600 }}>
+            That account isn&rsquo;t authorized. Keela is private to one account.
+          </div>
+        )}
         <button onClick={onSignIn} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: 15, borderRadius: 16, border: `1px solid ${th.line}`, background: th.card, color: th.ink,
           fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           <span style={{ width: 22, height: 22, borderRadius: 7, border: `1px solid ${th.line}`, display: 'grid',
             placeItems: 'center', fontWeight: 800, fontSize: 12 }}>G</span>
-          Continue with Google
+          {denied ? 'Try another account' : 'Continue with Google'}
         </button>
         <div style={{ fontSize: 11, color: th.ink3, letterSpacing: '0.02em', lineHeight: 1.5 }}>
           One account. No password. Without it, the app shows nothing.

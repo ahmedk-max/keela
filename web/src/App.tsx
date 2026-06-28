@@ -61,7 +61,7 @@ function TabBar({ tab, onChange }: { tab: string; onChange: (v: string) => void 
 }
 
 export default function App() {
-  const { user, loading: authLoading, signIn, signOut } = useAuth()
+  const { user, loading: authLoading, denied, signIn, signOut } = useAuth()
   const { data, loading: dataLoading } = useKeelaData(!!user)
 
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('keela.theme') || 'light')
@@ -265,7 +265,7 @@ export default function App() {
   if (authLoading) {
     content = <Loading />
   } else if (!user) {
-    content = <Lock onSignIn={handleSignIn} />
+    content = <Lock onSignIn={handleSignIn} denied={denied} />
   } else if (dataLoading) {
     content = <Loading />
   } else {
