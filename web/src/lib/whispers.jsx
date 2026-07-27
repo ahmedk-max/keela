@@ -22,14 +22,15 @@ export function whispers(data) {
       out.push({ p: 10, node: <>You&rsquo;re {b(fmt(-variableLeft) + ' SAR')} over the variable budget with {daysLeft} day{plural(daysLeft)} to go.</> })
     } else {
       const perDay = daysLeft > 0 ? Math.round(variableLeft / daysLeft) : variableLeft
-      out.push({ p: 4, node: <>{b(fmt(variableLeft) + ' SAR')} left to spend &mdash; about {fmt(perDay)}/day to coast the last {daysLeft} day{plural(daysLeft)}.</> })
+      out.push({ p: 4, node: <>{b(fmt(variableLeft) + ' SAR')} left to spend &mdash; about {fmt(perDay)}/day for the {daysLeft} day{plural(daysLeft)} left.</> })
     }
   }
 
   // ----- savings rate vs the pact -----
   if (cf.income > 0) {
     const diff = (cf.rate || 0) - (cf.target || 0)
-    if (diff >= 0) out.push({ p: 6, node: <>You&rsquo;re keeping {b(cf.rate + '%')} this cycle &mdash; {diff} point{plural(diff)} above the {cf.target} pact.</> })
+    if (diff === 0) out.push({ p: 6, node: <>You&rsquo;re keeping {b(cf.rate + '%')} this cycle &mdash; right on the {cf.target} pact.</> })
+    else if (diff > 0) out.push({ p: 6, node: <>You&rsquo;re keeping {b(cf.rate + '%')} this cycle &mdash; {diff} point{plural(diff)} above the {cf.target} pact.</> })
     else out.push({ p: 8, node: <>Savings are at {b(cf.rate + '%')}, {Math.abs(diff)} below the {cf.target} pact. Worth a nudge.</> })
   }
 

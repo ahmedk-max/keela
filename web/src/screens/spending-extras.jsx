@@ -84,13 +84,13 @@ export function spendStats(data) {
 const lbl = (th) => ({ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: th.ink3 })
 
 /* big amount field with the under-rule + SAR suffix (matches prototype 763) */
-function AmountField({ value, onChange }) {
+function AmountField({ value, onChange, autoFocus }) {
   const th = useTheme()
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, borderBottom: `2px solid ${th.line}`, padding: '6px 0', marginTop: 12 }}>
       <input
         value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
-        inputMode="decimal" placeholder="0"
+        inputMode="decimal" placeholder="0" autoFocus={autoFocus}
         style={{ flex: 1, minWidth: 0, border: 'none', background: 'none', fontSize: 26, fontWeight: 800, color: th.ink, outline: 'none', fontFamily: 'inherit', width: '100%' }}
       />
       <span style={{ fontSize: 13, fontWeight: 700, color: th.ink3 }}>SAR</span>
@@ -99,11 +99,11 @@ function AmountField({ value, onChange }) {
 }
 
 /* colourful rounded-chip category picker (accent-tinted when selected) */
-function CategoryPicker({ value, onChange }) {
+function CategoryPicker({ value, onChange, order }) {
   const th = useTheme()
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-      {CATEGORIES.map((c) => {
+      {(order || CATEGORIES).map((c) => {
         const meta = CAT[c]
         const on = value === c
         const col = meta ? meta.color : th.ink3
@@ -124,11 +124,19 @@ function CategoryPicker({ value, onChange }) {
 }
 
 /* ---------- transaction add/edit ---------- */
-export function TxSheet({ tx, onClose, onSave, onDelete }) {
+export function TxSheet({ tx, txns, onClose, onSave, onDelete }) {
   const th = useTheme()
+  // Chips ranked by how often each category is actually used, so the likeliest
+  // pick sits first — and it doubles as the default for a new entry. Stable
+  // sort keeps the canonical order for ties.
+  const catOrder = React.useMemo(() => {
+    const counts = {}
+    for (const t of txns || []) counts[t.cat] = (counts[t.cat] || 0) + 1
+    return [...CATEGORIES].sort((a, b) => (counts[b] || 0) - (counts[a] || 0))
+  }, [txns])
   const [amount, setAmount] = React.useState(tx ? String(tx.amount) : '')
   const [name, setName] = React.useState(tx ? tx.name : '')
-  const [cat, setCat] = React.useState(tx ? tx.cat : 'Food')
+  const [cat, setCat] = React.useState(tx ? tx.cat : catOrder[0])
   const [date, setDate] = React.useState(tx ? tx.date : TODAY)
   const [note, setNote] = React.useState(tx ? tx.note || '' : '')
   const valid = amount && parseFloat(amount) > 0 && name.trim()
@@ -137,9 +145,9 @@ export function TxSheet({ tx, onClose, onSave, onDelete }) {
     <Sheet title={tx ? 'Edit transaction' : 'Add transaction'} onClose={onClose}>
       {(close) => (
         <>
-          <AmountField value={amount} onChange={setAmount} />
+          <AmountField value={amount} onChange={setAmount} autoFocus={!tx} />
           <Field value={name} onChange={(e) => setName(e.target.value)} placeholder="What for? e.g. Tamimi Markets" />
-          <CategoryPicker value={cat} onChange={setCat} />
+          <CategoryPicker value={cat} onChange={setCat} order={catOrder} />
           <Field value={date} onChange={(e) => setDate(e.target.value)} type="date" />
           <Field value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" />
           <SheetSave onClick={() => { if (valid) { onSave(payload()); close() } }} style={{ opacity: valid ? 1 : 0.4, pointerEvents: valid ? 'auto' : 'none' }}>

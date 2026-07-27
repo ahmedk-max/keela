@@ -46,7 +46,7 @@ function TabBar({ tab, onChange }: { tab: string; onChange: (v: string) => void 
       {TABS.map((t) => {
         const on = tab === t.v
         return (
-          <button key={t.v} onClick={() => onChange(t.v)} style={{
+          <button key={t.v} onClick={() => onChange(t.v)} aria-label={t.label} aria-current={on ? 'page' : undefined} style={{
             flex: on ? 2.3 : 1, border: 'none', background: on ? th.accent : 'transparent', borderRadius: 999,
             padding: '11px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
             cursor: 'pointer', transition: 'flex .28s cubic-bezier(.2,.8,.2,1)',
@@ -307,7 +307,7 @@ export default function App() {
 
     let sheetEl: JSX.Element | null = null
     const closeSheet = () => setSheet(null)
-    if (sheet?.kind === 'tx') sheetEl = <TxSheet tx={sheet.tx} onClose={closeSheet} onSave={(f: any) => saveTxn(sheet.tx, f)} onDelete={deleteTxn} />
+    if (sheet?.kind === 'tx') sheetEl = <TxSheet tx={sheet.tx} txns={data.txns} onClose={closeSheet} onSave={(f: any) => saveTxn(sheet.tx, f)} onDelete={deleteTxn} />
     else if (sheet?.kind === 'bill') sheetEl = <BillSheet bill={sheet.bill} onClose={closeSheet} onSave={(f: any) => saveBill(sheet.bill, f)} onDelete={deleteBill} />
     else if (sheet?.kind === 'upcoming') sheetEl = <UpcomingSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveUpcoming(sheet.item, f)} onDelete={deleteUpcoming} />
     else if (sheet?.kind === 'wish') sheetEl = <WishlistSheet item={sheet.item} onClose={closeSheet} onSave={(f: any) => saveWish(sheet.item, f)} onDelete={deleteWish} />

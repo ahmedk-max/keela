@@ -25,14 +25,17 @@ export function Home({ data, nav }) {
   const dayInCycle = Math.min(cycleLen, Math.max(0, Math.round((Date.now() - startMs) / DAY)))
   const daysLeft = Math.max(0, cycleLen - dayInCycle)
   const timePct = Math.round((dayInCycle / cycleLen) * 100)
-  const onPace = variablePct <= timePct
   const perDay = daysLeft > 0 ? Math.round(variableLeft / daysLeft) : variableLeft
 
+  // Pace with an 8-point deadband and a 3-day grace: one grocery run on day 1
+  // shouldn't scream "Over pace" — the badge only alarms when it's worth acting on.
   const over = variableLeft < 0
-  const paceLabel = over ? 'Over budget' : onPace ? 'On pace' : 'Over pace'
-  const paceBg = over ? 'rgba(240,138,126,.18)' : onPace ? 'rgba(120,200,150,.18)' : 'rgba(230,170,90,.2)'
-  const paceFg = over ? '#F3B4AC' : onPace ? '#9FE0B4' : '#F0C98E'
-  const barColor = over ? '#E5786C' : onPace ? '#7BC894' : '#E5A862'
+  const fresh = !over && dayInCycle < 3
+  const onPace = variablePct <= timePct + 8
+  const paceLabel = over ? 'Over budget' : fresh ? 'Fresh cycle' : onPace ? 'On pace' : 'Over pace'
+  const paceBg = over ? 'rgba(240,138,126,.18)' : fresh ? 'rgba(243,238,227,.12)' : onPace ? 'rgba(120,200,150,.18)' : 'rgba(230,170,90,.2)'
+  const paceFg = over ? '#F3B4AC' : fresh ? 'rgba(243,238,227,.75)' : onPace ? '#9FE0B4' : '#F0C98E'
+  const barColor = over ? '#E5786C' : fresh || onPace ? '#7BC894' : '#E5A862'
 
   // ----- runway: liquid (unearmarked) money ÷ monthly essentials -----
   const nw = profile.netWorth
@@ -79,7 +82,7 @@ export function Home({ data, nav }) {
   const dim = th.onDarkDim
 
   return (
-    <div className="k-screen">
+    <div className="k-screen k-screen--fab">
       <div style={{ padding: '0 20px' }}>
         {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
@@ -106,7 +109,7 @@ export function Home({ data, nav }) {
             <Pill bg={paceBg} fg={paceFg}>{paceLabel}</Pill>
           </div>
           <div style={{ fontSize: 12.5, color: dim, marginTop: 14 }}>
-            {daysLeft > 0 ? `~${fmt(Math.max(0, perDay))}/day to coast the last ${daysLeft} days` : 'cycle ending'}
+            {daysLeft > 0 ? `~${fmt(Math.max(0, perDay))}/day for the ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : 'cycle ending'}
           </div>
           <div style={{ position: 'relative', marginTop: 16, height: 10, borderRadius: 999, background: 'rgba(255,255,255,.1)' }}>
             <div style={{ height: '100%', borderRadius: 999, width: `${Math.min(100, variablePct)}%`, background: barColor, transition: 'width 560ms cubic-bezier(.2,.8,.2,1)' }} />

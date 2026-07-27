@@ -57,6 +57,9 @@ body { overscroll-behavior-y: none; }
 /* No top padding — content sits flush at the top edge (no status-bar reservation,
    no iOS scroll-edge scrim). Bottom still clears the floating tab bar + home indicator. */
 .k-screen { padding: 0 0 calc(88px + env(safe-area-inset-bottom)); }
+/* Screens that host the floating add button (Home, Spend) reserve extra
+   scroll-end room so the FAB never covers the last row's amount. */
+.k-screen--fab { padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
 
 /* =========================================================================
    Motion — entrances, sheet, detail push, fades. Brief and soft.

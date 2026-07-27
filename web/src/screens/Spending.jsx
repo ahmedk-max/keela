@@ -24,6 +24,8 @@ function dayLabel(d) {
   return fmtDate(d)
 }
 
+const ord = (n) => n + ([11, 12, 13].includes(n % 100) ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')
+
 /* ---------- Swipe-to-act row ----------
    Tap fires the primary action (edit); a horizontal drag reveals Edit + Delete
    buttons underneath. Vertical scroll is preserved (we only hijack once a mostly-
@@ -135,8 +137,13 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
   const left = budget - curTotal
   const pctUsed = budget > 0 ? Math.round((curTotal / budget) * 100) : 0
   const barFillPct = Math.min(100, pctUsed)
-  const overProjected = projected > budget && budget > 0
-  const pacePct = prevAtNow ? Math.round((paceVal / prevAtNow) * 100) : null
+  // Extrapolating a whole cycle from a day or two of spend produces alarmist
+  // nonsense (one grocery run → "projected 10k"). Hold the derived stats until
+  // there's enough signal: 5 days for the projection, a real prior-cycle base
+  // for the vs-last comparison.
+  const earlyCycle = stats.elapsed < 5
+  const overProjected = !earlyCycle && projected > budget && budget > 0
+  const pacePct = !earlyCycle && prevAtNow >= 100 ? Math.round((paceVal / prevAtNow) * 100) : null
   const up = paceVal > 0 // spending faster than last cycle = bad
   const barColor = left < 0 ? th.loss : th.accent
   const leftColor = left < 0 ? th.loss : th.gain
@@ -196,8 +203,8 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
           <div style={{ fontSize: 11, color: th.ink3, marginTop: 3 }}>Avg / day</div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: overProjected ? th.loss : th.ink }}>{fmt(projected)}</div>
-          <div style={{ fontSize: 11, color: th.ink3, marginTop: 3 }}>Projected</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: overProjected ? th.loss : earlyCycle ? th.ink3 : th.ink }}>{earlyCycle ? '—' : fmt(projected)}</div>
+          <div style={{ fontSize: 11, color: th.ink3, marginTop: 3 }}>{earlyCycle ? 'Projected · early days' : 'Projected'}</div>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: th.ink }}>{fmt(prevTotal)}</div>
@@ -394,7 +401,7 @@ function RecurringView({ bills, cf, nav }) {
           onClick={() => nav.editBill(b)}
           tile={<CatTile color={color} icon={icon} />}
           name={b.name}
-          sub={`${b.cat} · ${b.type === 'yearly' ? 'Yearly' : b.day ? 'Due ' + b.day : 'Monthly'}`}
+          sub={`${b.cat} · ${b.type === 'yearly' ? 'Yearly' : b.day ? 'Due the ' + ord(b.day) : 'Monthly'}`}
           right={fmt(b.amount, b.amount % 1 ? 2 : 0)}
           rightSub={b.type === 'yearly' ? '/yr' : '/mo'}
         />
@@ -553,7 +560,7 @@ export function Spending({ data, nav, sub, setSub }) {
   const onAdd = () => (sub === 'rec' ? nav.addBill() : sub === 'up' ? nav.addUpcoming() : nav.addTx())
 
   return (
-    <div className="k-screen">
+    <div className="k-screen k-screen--fab">
       <div style={{ padding: '0 20px' }}>
         {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
