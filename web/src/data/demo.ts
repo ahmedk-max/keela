@@ -113,7 +113,7 @@ const raw = {
     {
       id: 'm1', date: dayISO(2), title: 'You’re ahead of the pact this cycle',
       summary: 'Variable spend is tracking under budget and your savings rate is 73% — three points above the 70% pact. Nothing to correct; keep the rhythm.',
-      body: '## Where we stand\n\nThis cycle you’ve kept **73%** — above the 70 pact line. Variable spending is calm: groceries and food are the bulk, no outliers.\n\n- Income held at **28,000** SAR\n- Fixed + subs steady at **5,110**\n- Variable so far **~2,400**, well under the 3,290 budget\n\n> Stay the course. If anything, the New Car bucket could take the surplus.\n\n## One nudge\n\nThe Wedding bucket is paused. When the car lands, redirect that contribution rather than letting it leak into variable.',
+      body: '## Where we stand\n\nThis cycle you’ve kept **73%** — above the 70 pact line. Variable spending is calm: groceries and food are the bulk, no outliers.\n\n- Income held at **28,000** SAR\n- Fixed + subs steady at **5,110**\n- Variable so far **~2,400**, well under the 3,290 budget\n\n| Bucket | Held | Target |\n| --- | ---: | ---: |\n| Emergency Fund | 38,000 | 50,000 |\n| New Car | 24,000 | 80,000 |\n| Wedding | 12,000 | 120,000 |\n\n> Stay the course. If anything, the New Car bucket could take the surplus.\n\n## One nudge\n\nThe Wedding bucket is paused. When the car lands, redirect that contribution rather than letting it leak into variable.',
     },
     {
       id: 'm2', date: dayISO(11), title: 'Gold offset the crypto dip',

@@ -95,6 +95,11 @@ body { overscroll-behavior-y: none; }
 /* grow-from-zero for stacked bars / fills (transform, so widths stay intact) */
 @keyframes kgrowx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+/* splash waves — the two-tile SVG drifts half its width, looping seamlessly */
+.k-wave { animation: kwave linear infinite; will-change: transform; }
+@keyframes kwave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .k-wave { animation: none; } }
+
 /* respect reduce-motion */
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .k-detail, .k-overlay::before, .k-overlay > .k-sheet, .k-fab-in {

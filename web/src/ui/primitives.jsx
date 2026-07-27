@@ -168,7 +168,7 @@ export function donutGeom(cats, total, R = 58, cx = 80, cy = 80, gapPx = 5) {
     badges.push({
       xPct: ((cx + R * Math.cos(rad)) / (cx * 2)) * 100,
       yPct: ((cy + R * Math.sin(rad)) / (cy * 2)) * 100,
-      color: c.color, icon: c.icon, cat: c.cat,
+      color: c.color, icon: c.icon, cat: c.cat, frac,
     })
     cum += frac
   })
@@ -186,7 +186,8 @@ export function Donut({ cats = [], total = 0, size = 200, stroke = 15, badges = 
             strokeLinecap="round" strokeDasharray={s.dash} transform={s.rot} />
         ))}
       </svg>
-      {badges && bd.map((b, i) => (
+      {/* sliver segments skip their badge — bunched icons read worse than none */}
+      {badges && bd.filter((b) => b.frac >= 0.06).map((b, i) => (
         <span key={i} style={{ position: 'absolute', left: `${b.xPct}%`, top: `${b.yPct}%`,
           transform: 'translate(-50%,-50%)', width: 26, height: 26, borderRadius: '50%',
           background: th.card, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -381,9 +382,28 @@ export function Empty({ children, style }) {
 /* ---------- Markdown (note bodies) ---------- */
 export function mdBlocks(text) {
   const strip = (t) => (t || '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
+  const lines = (text || '').split('\n')
   const out = []
-  for (const ln of (text || '').split('\n')) {
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i]
     if (ln.trim() === '') continue
+    if (ln.trim().startsWith('|')) {
+      // table — consume the whole run of |-rows; row 2 of |---|:---:| marks a header
+      const rows = []
+      while (i < lines.length && lines[i].trim().startsWith('|')) { rows.push(lines[i].trim()); i++ }
+      i--
+      const cells = (r) => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => strip(c.trim()))
+      const parsed = rows.map(cells)
+      const isSep = (cs) => cs.length > 0 && cs.every((c) => /^:?-{2,}:?$/.test(c))
+      let head = null, body = parsed, align = []
+      if (parsed.length > 1 && isSep(parsed[1])) {
+        head = parsed[0]
+        align = parsed[1].map((c) => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : 'left'))
+        body = parsed.slice(2)
+      }
+      out.push({ t: 'table', head, body, align })
+      continue
+    }
     if (/^#{1,3}\s/.test(ln)) out.push({ t: 'h', text: strip(ln.replace(/^#{1,3}\s+/, '')) })
     else if (ln.startsWith('> ')) out.push({ t: 'q', text: strip(ln.slice(2)) })
     else if (ln.startsWith('- ')) out.push({ t: 'li', text: strip(ln.slice(2)) })
@@ -396,6 +416,29 @@ export function Markdown({ text }) {
   return (
     <div style={{ fontSize: 14, color: th.ink2 }}>
       {mdBlocks(text).map((b, i) => {
+        if (b.t === 'table') {
+          const alignOf = (j) => b.align[j] || 'left'
+          return (
+            <div key={i} className="kscroll" style={{ overflowX: 'auto', margin: '14px 0' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5, lineHeight: 1.5 }}>
+                {b.head && (
+                  <thead>
+                    <tr>{b.head.map((c, j) => (
+                      <th key={j} style={{ textAlign: alignOf(j), padding: '7px 10px', borderBottom: `1.5px solid ${th.ink3}`, color: th.ink, fontWeight: 700, whiteSpace: 'nowrap' }}>{c}</th>
+                    ))}</tr>
+                  </thead>
+                )}
+                <tbody>
+                  {b.body.map((r, ri) => (
+                    <tr key={ri}>{r.map((c, j) => (
+                      <td key={j} style={{ textAlign: alignOf(j), padding: '7px 10px', borderBottom: `1px solid ${th.line}`, color: th.ink2 }}>{c}</td>
+                    ))}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
         if (b.t === 'h') return <div key={i} style={{ fontSize: 15, fontWeight: 800, color: th.ink, margin: '18px 0 8px' }}>{b.text}</div>
         if (b.t === 'q') return <p key={i} style={{ borderLeft: `3px solid ${th.accent}`, paddingLeft: 13, fontStyle: 'italic', color: th.ink2, margin: '14px 0', lineHeight: 1.6 }}>{b.text}</p>
         if (b.t === 'li') return <div key={i} style={{ display: 'flex', gap: 9, margin: '6px 0', lineHeight: 1.6 }}><span style={{ color: th.accent }}>•</span><span>{b.text}</span></div>

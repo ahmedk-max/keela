@@ -168,7 +168,10 @@ function TransactionsView({ txns, stats, cycleLabel, daysLeft, cf, nav, whisper,
           <span style={{ fontSize: 13, fontWeight: 700, color: th.ink2 }}>This cycle</span>
           <span style={{ fontSize: 11, color: th.ink3 }}>{cycleLabel}</span>
         </div>
-        <Donut cats={cats} total={curTotal} style={{ margin: '6px auto 4px' }}>
+        {/* Ring scaled against the BUDGET (not total spend) so its filled fraction
+            matches the %-used bar below — one encoding, two shapes. Category
+            segments keep their colours; the empty track is what's left. */}
+        <Donut cats={cats} total={Math.max(budget, curTotal)} style={{ margin: '6px auto 4px' }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: th.ink3 }}>Total spend</span>
           <CountUp value={curTotal} style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-.03em', color: th.ink, marginTop: 2 }} />
           <span style={{ fontSize: 11, color: th.ink3 }}>of {fmt(budget)} budget</span>
