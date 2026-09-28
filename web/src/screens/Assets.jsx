@@ -39,7 +39,7 @@ const holdSub = (h) =>
     ? "Cash balance"
     : h.units != null
       ? `${unitsStr(h.units)} units · avg ${unitsStr(h.avgCost)} SAR`
-      : "Recorded cost basis";
+      : "Cost basis";
 function Allocation({ items }) {
   const parts = items
     .filter((x) => x.value > 0)
@@ -47,7 +47,23 @@ function Allocation({ items }) {
   return parts.length ? (
     <Section title="Allocation">
       <SplitBar items={parts} />
-      <Legend items={parts} />
+      <div className="c-allocation-legend">
+        {parts.map((part) => (
+          <div key={part.label}>
+            <span>
+              <i style={{ background: part.color }} />
+              {part.label}
+            </span>
+            <span className="c-muted">
+              {Math.round(
+                (part.value / parts.reduce((sum, x) => sum + x.value, 0)) * 100,
+              )}
+              %
+            </span>
+            <Money value={part.value} />
+          </div>
+        ))}
+      </div>
     </Section>
   ) : null;
 }
@@ -62,9 +78,9 @@ export function Assets({ data, nav }) {
     })),
     largest = [...parts].sort((a, b) => b.value - a.value)[0];
   return (
-    <Page title="Assets" subtitle="What you hold, at recorded cost" nav={nav}>
+    <Page title="Assets" nav={nav}>
       <Hero
-        label="Total cost basis"
+        label="Cost basis"
         amount={total}
         subtitle={`${data.assets.length} holdings · ${portfolios.length} portfolios`}
         ring={
@@ -96,23 +112,27 @@ export function Assets({ data, nav }) {
               style={{ width: "100%" }}
               onClick={() => nav.openPortfolio(p.id)}
             >
-              <MetricRing pct={pfProgress(p)} size={36} color={p.color} small />
+              <span className="c-portfolio-mark" style={{ color: p.color }}>
+                <span aria-hidden="true">
+                  {p.name.slice(0, 1).toUpperCase()}
+                </span>
+              </span>
               <span className="c-row-content">
                 <span className="c-row-title">
                   <span>{p.name}</span>
                   <Money value={p.value} />
                 </span>
                 <span className="c-meta">
-                  <span>{p.count} holdings</span>
                   <span>
-                    {p.target > 0 ? `of ${fmt(p.target)}` : "Cost basis"}
+                    {p.count} {p.count === 1 ? "holding" : "holdings"}
+                  </span>
+                  <span>
+                    {p.target > 0 ? `${pfProgress(p)}% of target` : ""}
                   </span>
                 </span>
-                {p.target > p.value && (
-                  <small>
-                    {fmt(pfMonthlyNeeded(p))} /mo to goal · {p.targetDate}
-                  </small>
-                )}
+              </span>
+              <span className="c-row-chevron" aria-hidden="true">
+                ›
               </span>
             </button>
           ))
@@ -120,9 +140,6 @@ export function Assets({ data, nav }) {
           <Empty>Create a portfolio to start tracking your holdings.</Empty>
         )}
       </Section>
-      <p className="c-note">
-        Balances reflect recorded cost, without live prices or market gains.
-      </p>
     </Page>
   );
 }
@@ -146,9 +163,9 @@ export function PortfolioDetail({
     >
       <h1>{p.name}</h1>
       <Hero
-        label="Recorded cost basis"
+        label="Cost basis"
         amount={p.value}
-        subtitle={`${p.count} holdings`}
+        subtitle={`${p.count} ${p.count === 1 ? "holding" : "holdings"}`}
         ring={
           p.target > 0 && (
             <MetricRing
@@ -206,6 +223,9 @@ export function PortfolioDetail({
                 </span>
                 <span className="c-meta">{holdSub(h)}</span>
               </span>
+              <span className="c-row-chevron" aria-hidden="true">
+                ›
+              </span>
             </button>
           ))
         ) : (
@@ -233,9 +253,9 @@ export function HoldingDetail({ h, portfolio, onClose, onEdit, onAct }) {
     >
       <h1>{h.name}</h1>
       <Hero
-        label={cash ? "Cash balance" : "Recorded cost basis"}
+        label={cash ? "Cash balance" : "Cost basis"}
         amount={h.current}
-        subtitle={holdSub(h)}
+        subtitle={cash ? undefined : holdSub(h)}
         ring={
           <MetricRing
             pct={portfolio.value ? (h.current / portfolio.value) * 100 : 0}
@@ -285,10 +305,17 @@ export function HoldingDetail({ h, portfolio, onClose, onEdit, onAct }) {
                   </span>
                   <span>{e.type === "sell" ? "Proceeds" : ""}</span>
                 </span>
-                {e.type === "sell" && e.costRemoved != null && (
-                  <small>Cost removed {fmt(e.costRemoved)} SAR</small>
+                {(e.note || (e.type === "sell" && e.costRemoved != null)) && (
+                  <details className="c-activity-details">
+                    <summary>Details</summary>
+                    {e.type === "sell" && e.costRemoved != null && (
+                      <p className="c-form-note">
+                        Cost removed {fmt(e.costRemoved)} SAR
+                      </p>
+                    )}
+                    {e.note && <p className="c-form-note">{e.note}</p>}
+                  </details>
                 )}
-                {e.note && <div className="c-muted">{e.note}</div>}
               </span>
             </div>
           ))

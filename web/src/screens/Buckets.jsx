@@ -1,4 +1,11 @@
 import React from "react";
+import { LayoutGroup } from "framer-motion";
+import {
+  contributionSummary,
+  monthlyRequired,
+  groupBuckets,
+  compareBuckets,
+} from "../lib/buckets.mjs";
 import { useTheme, SWATCHES } from "../lib/theme";
 import { fmt, fmtDate } from "../lib/format";
 import {
@@ -34,7 +41,6 @@ import {
   balanceOf,
   cycleAmount,
   cycleLabel,
-  monthlyPlan,
   phaseLabel,
 } from "../ui/compact";
 import { entryMeta } from "../lib/icons";
@@ -59,71 +65,186 @@ export function Colours({ value, onChange }) {
     </div>
   );
 }
-export function ContributionPlan({ data, onClose }) {
-  const budget = (data.cashflow.income * data.cashflow.target) / 100;
-  const list = data.goals.filter((g) => monthlyPlan(g, data.cashflow) > 0);
+export function ContributionPlan({ data, onClose, onEdit }) {
+  const summary = contributionSummary(data.goals, data.cashflow);
+  const list = summary.rows.filter(
+    ({ goal, required }) =>
+      required === null ||
+      required > 0 ||
+      cycleAmount(goal, data.cashflow, "deposit") > 0 ||
+      (!goal.archived && goal.monthlyPlan != null),
+  );
   return (
-    <Sheet title="Monthly contribution plan" onClose={onClose}>
-      <p className="c-form-note">Save budget · {fmt(budget)} SAR</p>
-      {list.map((g) => (
-        <div className="c-row" key={g.id}>
-          <div className="c-row-content">
-            {g.name}
-            <div className="c-meta">
-              {fmt(cycleAmount(g, data.cashflow, "deposit"))} contributed this
-              cycle
+    <Sheet title="Monthly contribution" onClose={onClose}>
+      <div className="c-stat-row c-plan-summary">
+        <div>
+          Required / month
+          <strong>
+            <Money value={summary.required} />
+            {summary.missingDeadlines ? "+" : ""}
+          </strong>
+        </div>
+        <div>
+          {data.cashflow.target}% budget
+          <strong>
+            <Money value={summary.budget} />
+          </strong>
+        </div>
+        <div>
+          Deposited this cycle
+          <strong>
+            <Money value={summary.deposited} />
+          </strong>
+        </div>
+      </div>
+      {list
+        .sort((a, b) => compareBuckets(a.goal, b.goal))
+        .map(({ goal: g, required }) => (
+          <div className="c-row" key={g.id}>
+            <div className="c-row-content">
+              <div className="c-row-title">
+                <span>{g.name}</span>
+                {required === null ? (
+                  <Action
+                    small
+                    onClick={() => {
+                      onClose();
+                      onEdit?.(g.id);
+                    }}
+                  >
+                    Set deadline
+                  </Action>
+                ) : (
+                  <Money value={required} />
+                )}
+              </div>
+              <div className="c-meta">
+                <span>{g.targetDate || "No deadline"}</span>
+                <span>
+                  {fmt(cycleAmount(g, data.cashflow, "deposit"))} deposited
+                </span>
+              </div>
+              {g.monthlyPlan != null && (
+                <p className="c-form-note">
+                  Your plan: {fmt(g.monthlyPlan)} /mo
+                </p>
+              )}
             </div>
           </div>
-          <Money value={monthlyPlan(g, data.cashflow)} />
-        </div>
-      ))}
+        ))}
       {!list.length && (
-        <p className="c-form-note">
-          Set a monthly contribution in a bucket’s options to start your plan.
-        </p>
+        <p className="c-form-note">No active funding requirements.</p>
       )}
-      <p className="c-form-note">
-        Edit a bucket to adjust its monthly contribution. Automatic plans use
-        its target, deadline and balance at the start of the cycle.
-      </p>
+      <details className="c-details">
+        <summary>How it is calculated</summary>
+        <p className="c-form-note">
+          Remaining targets divided by months to their deadlines, using current
+          balances. Due and overdue targets are needed now. Deposits and your
+          saved plan are shown separately.
+        </p>
+      </details>
     </Sheet>
   );
 }
-export function Buckets({ data, nav, sub, setSub }) {
-  const th = useTheme(),
-    [plan, setPlan] = React.useState(false);
-  const current = data.goals.filter((g) => !g.archived),
-    total = current.reduce((s, g) => s + balanceOf(g), 0);
-  const shown = data.goals.filter((g) =>
-    sub === "archived"
-      ? g.archived
-      : !g.archived &&
-        (sub === "all" ||
-          (sub === "saving"
-            ? ["saving", "ready"].includes(bucketPhase(g))
-            : bucketPhase(g) === sub)),
+function RestoreBucket({ g, nav }) {
+  const [busy, setBusy] = React.useState(false),
+    [error, setError] = React.useState("");
+  const locked = React.useRef(false);
+  return (
+    <div className="c-archive-item">
+      <BucketRow
+        g={g}
+        data={{ cashflow: {} }}
+        nav={nav}
+        trailing={
+          <Action
+            small
+            disabled={busy}
+            aria-label={`Restore ${g.name}`}
+            onClick={async () => {
+              if (locked.current) return;
+              locked.current = true;
+              setBusy(true);
+              setError("");
+              try {
+                await nav.restoreBucket(g.id);
+                document.querySelector(".c-archive-back")?.focus();
+                window.dispatchEvent(new Event("keela:saved"));
+              } catch (e) {
+                setError(
+                  e.message || "Couldn’t restore this bucket. Try again.",
+                );
+              } finally {
+                locked.current = false;
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Restoring…" : "Restore"}
+          </Action>
+        }
+      />
+      {error && (
+        <p className="c-form-note c-error-text" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
-  const pinned = shown.filter((g) => g.pinned),
-    others = shown.filter((g) => !g.pinned);
-  const rows = (list, title) =>
-    list.length > 0 && (
-      <Section title={title} detail={String(list.length)}>
-        {list.map((g) => (
-          <BucketRow key={g.id} g={g} data={data} nav={nav} />
-        ))}
-      </Section>
+}
+export function Buckets({ data, nav, sub, setSub }) {
+  const [plan, setPlan] = React.useState(false),
+    [menu, setMenu] = React.useState(false);
+  const menuDestination = React.useRef(null);
+  const groups = groupBuckets(data.goals);
+  const current = data.goals.filter(
+    (g) => !g.archived && bucketPhase(g) !== "completed",
+  );
+  const archived = data.goals.filter((g) => g.archived).sort(compareBuckets);
+  if (sub === "archived")
+    return (
+      <Page
+        title="Archive"
+        action={
+          <button
+            className="c-button c-archive-back"
+            onClick={() => setSub("all")}
+          >
+            ‹ Back
+          </button>
+        }
+      >
+        <Section title="Archived buckets" detail={String(archived.length)}>
+          {archived.map((g) => (
+            <RestoreBucket key={g.id} g={g} nav={nav} />
+          ))}
+          {!archived.length && <Empty>No archived buckets.</Empty>}
+        </Section>
+      </Page>
     );
   return (
     <Page
       title="Buckets"
-      subtitle={cycleLabel(data.cashflow)}
       action={
-        <Action primary onClick={nav.addBucket}>
-          + New
-        </Action>
+        <div className="c-header-actions">
+          <Action primary onClick={nav.addBucket}>
+            + New
+          </Action>
+          <button
+            className="c-icon-button c-more"
+            aria-label="Bucket menu"
+            aria-haspopup="dialog"
+            onClick={() => setMenu(true)}
+          >
+            •••
+          </button>
+        </div>
       }
     >
-      <Hero label={`Held across ${current.length} buckets`} amount={total}>
+      <Hero
+        label="Held in buckets"
+        amount={current.reduce((sum, g) => sum + balanceOf(g), 0)}
+      >
         <SplitBar
           items={current
             .filter((g) => balanceOf(g) > 0)
@@ -133,60 +254,79 @@ export function Buckets({ data, nav, sub, setSub }) {
               color: g.color,
             }))}
         />
-        <div className="c-meta">
-          <span>Saving, ready & in use</span>
-          <span>All your plans</span>
-        </div>
       </Hero>
       <Contribution data={data} onPlan={() => setPlan(true)} />
-      <div className="c-filters" aria-label="Filter buckets">
-        {[
-          ["all", "All"],
-          ["saving", "Saving"],
-          ["inuse", "In use"],
-        ].map(([v, l]) => (
-          <button key={v} aria-pressed={sub === v} onClick={() => setSub(v)}>
-            {l}
-          </button>
-        ))}
-      </div>
-      {sub === "inuse" && (
-        <div className="c-note">
-          <Money
-            value={shown.reduce(
-              (s, g) => s + cycleAmount(g, data.cashflow, "spend"),
-              0,
-            )}
-          />{" "}
-          SAR spent from these buckets this cycle.
-          <br />
-          <Money value={shown.reduce((s, g) => s + balanceOf(g), 0)} /> SAR
-          remains available.
-        </div>
+      <LayoutGroup id="buckets">
+        {groups
+          .filter((group) => group.goals.length)
+          .map((group) => (
+            <Section
+              key={group.phase}
+              title={group.label}
+              detail={String(group.goals.length)}
+              collapsible={["paused", "completed"].includes(group.phase)}
+            >
+              {group.goals.map((g) => (
+                <BucketRow
+                  key={g.id}
+                  g={g}
+                  data={data}
+                  nav={nav}
+                  showPhase={false}
+                  animateLayout
+                />
+              ))}
+            </Section>
+          ))}
+      </LayoutGroup>
+      {!groups.some((g) => g.goals.length) && (
+        <Empty>Create a bucket to get started.</Empty>
       )}
-      {rows(pinned, "Pinned")}
-      {rows(
-        others,
-        sub === "archived"
-          ? "Archived"
-          : pinned.length
-            ? "Other buckets"
-            : "Buckets",
+      {plan && (
+        <ContributionPlan
+          data={data}
+          onClose={() => setPlan(false)}
+          onEdit={nav.editBucket}
+        />
       )}
-      {!shown.length && (
-        <Empty>
-          {sub === "archived"
-            ? "No archived buckets."
-            : "No buckets in this view. Create one to get started."}
-        </Empty>
+      {menu && (
+        <Sheet
+          title="Buckets"
+          onClose={() => {
+            setMenu(false);
+            const destination = menuDestination.current;
+            menuDestination.current = null;
+            if (destination === "archive") setSub("archived");
+            if (destination === "settings") nav.openSettings();
+          }}
+        >
+          {(close) => (
+            <>
+              <button
+                className="c-row c-row-main"
+                onClick={() => {
+                  menuDestination.current = "archive";
+                  close();
+                }}
+              >
+                <span className="c-row-content">Archive</span>
+                <span className="c-muted">{archived.length}</span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button
+                className="c-row c-row-main"
+                onClick={() => {
+                  menuDestination.current = "settings";
+                  close();
+                }}
+              >
+                <span className="c-row-content">Settings</span>
+                <span aria-hidden="true">›</span>
+              </button>
+            </>
+          )}
+        </Sheet>
       )}
-      <Action
-        small
-        onClick={() => setSub(sub === "archived" ? "all" : "archived")}
-      >
-        {sub === "archived" ? "Show current buckets" : "Archived"}
-      </Action>
-      {plan && <ContributionPlan data={data} onClose={() => setPlan(false)} />}
     </Page>
   );
 }
@@ -196,13 +336,16 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
     phase = bucketPhase(g),
     balance = balanceOf(g),
     inuse = phase === "inuse";
-  const pct = inuse
-    ? g.allocated
-      ? (balance / g.allocated) * 100
-      : 0
-    : g.target
-      ? (balance / g.target) * 100
-      : 0;
+  const pct =
+    phase === "completed"
+      ? 100
+      : inuse
+        ? g.allocated
+          ? (balance / g.allocated) * 100
+          : 0
+        : g.target
+          ? (balance / g.target) * 100
+          : 0;
   const series = balanceSeries(g),
     cf = data.cashflow;
   return (
@@ -235,7 +378,7 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
         ring={
           <MetricRing
             pct={pct}
-            caption={inuse ? "left" : "funded"}
+            caption={phase === "completed" ? "used" : inuse ? "left" : "funded"}
             dark
             color={inuse ? th.green : g.color}
           />
@@ -281,13 +424,19 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
         />
         <div className="c-stat-row">
           <div>
-            Planned / month
+            Required / month
             <strong>
-              <Money value={monthlyPlan(g, cf)} />
+              {monthlyRequired(g, cf) === null ? (
+                <Action small onClick={() => onEdit(g.id)}>
+                  Set deadline
+                </Action>
+              ) : (
+                <Money value={monthlyRequired(g, cf)} />
+              )}
             </strong>
           </div>
           <div>
-            Target month<strong>{g.targetDate}</strong>
+            Target month<strong>{g.targetDate || "Not set"}</strong>
           </div>
         </div>
       </Section>
@@ -418,7 +567,7 @@ export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
               <Money value={Number.isFinite(after) ? after : balance} /> SAR
             </span>
           </div>
-          {!available && (
+          {amount && Number.isFinite(n) && n > 0 && !available && (
             <p role="alert" className="c-sheet-error">
               Only {fmt(balance)} SAR is available.
             </p>
@@ -468,7 +617,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
     [target, setTarget] = React.useState(
       goal.target ? String(goal.target) : "",
     ),
-    [date, setDate] = React.useState(goal.targetDate || todayISO().slice(0, 7));
+    [date, setDate] = React.useState(goal.targetDate || "");
   const [status, setStatus] = React.useState(goal.status || "active"),
     [color, setColor] = React.useState(goal.color || SWATCHES[0]),
     [note, setNote] = React.useState(goal.note || ""),
@@ -479,7 +628,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
   const valid =
     name.trim() &&
     parseDecimal(target) > 0 &&
-    /^\d{4}-(0[1-9]|1[0-2])$/.test(date) &&
+    (!date || /^\d{4}-(0[1-9]|1[0-2])$/.test(date)) &&
     (!plan || Number.isFinite(parseDecimal(plan)));
   return (
     <Sheet title={isNew ? "New bucket" : "Bucket options"} onClose={onClose}>
@@ -501,7 +650,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
               placeholder="10000"
             />
             <Field
-              label="Target month"
+              label="Target month · optional"
               type="month"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -510,25 +659,25 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
           <details className="c-form-options">
             <summary>Monthly plan, colour & other options</summary>
             <Field
-              label="Monthly contribution · SAR"
+              label="Your monthly plan · SAR"
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
               inputMode="decimal"
-              placeholder="Automatic from target"
+              placeholder="Optional personal plan"
             />
             <SelectField
-              label="Stage"
+              label="Funding status"
               inline
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option value="active">Saving / in use</option>
-              <option value="completed">Ready to use</option>
+              <option value="active">Active funding</option>
+              <option value="completed">Funding finished</option>
               <option value="paused">Paused</option>
             </SelectField>
             <p className="c-form-note">
-              Spending activity marks a current bucket as In use. Existing
-              history is preserved.
+              Active funding includes replenishment. Used-up buckets appear in
+              Completed automatically.
             </p>
             <label
               className="c-form-note"
@@ -560,7 +709,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
                 operationId: op,
                 name: name.trim(),
                 target: parseDecimal(target),
-                targetDate: date,
+                targetDate: date || null,
                 status,
                 color,
                 note: note.trim(),

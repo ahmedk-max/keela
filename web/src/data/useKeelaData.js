@@ -12,6 +12,7 @@ import { db } from '../lib/firebase'
 import { cap, catCode, fmt, NOW_MONTH } from '../lib/format'
 import { DEMO, demoRaw } from './demo'
 import { roundMoney } from '../lib/money.mjs'
+import { deadlineMonth, paydayCycle } from '../lib/buckets.mjs'
 
 // Warm fallback palette for goals / holdings / portfolios with no stored colour
 // (mirrors lib/theme.js SWATCHES).
@@ -38,7 +39,8 @@ const codeFromName = (name) => {
 
 const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '')
 
-export function buildData(raw) {
+export function buildData(raw, today = new Date()) {
+  const nowMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   // group entries (collectionGroup) back under their parent goal/asset
   const entriesByParent = {}
   for (const e of raw.entries) {
@@ -57,7 +59,7 @@ export function buildData(raw) {
     archived: !!g.archived, pinned: !!g.pinned, monthlyPlan: g.monthlyPlan ?? null,
     color: g.color || '#C4623A',
     code: codeFromName(g.name),
-    targetDate: (g.targetDate || '').slice(0, 7) || NOW_MONTH,
+    targetDate: deadlineMonth(g.targetDate),
     note: g.note || '',
     entries: (entriesByParent['goals/' + g.id] || [])
       .slice()
@@ -174,14 +176,7 @@ export function buildData(raw) {
 
   // Pay-cycle window (payday -> next payday). "Month" = the 27->27 cycle.
   const payday = p.payday || 27
-  const today = new Date()
-  const cycleStartD = new Date(today.getFullYear(), today.getMonth(), payday)
-  if (today.getDate() < payday) cycleStartD.setMonth(cycleStartD.getMonth() - 1)
-  const cycleEndD = new Date(cycleStartD)
-  cycleEndD.setMonth(cycleEndD.getMonth() + 1)
-  const isod = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  const cycleStart = isod(cycleStartD)
-  const cycleEnd = isod(cycleEndD)
+  const { cycleStart, cycleEnd } = paydayCycle(payday, today)
 
   const cycleTxns = txns.filter((t) => (t.date || '') >= cycleStart && (t.date || '') < cycleEnd)
   const variableSpent = roundMoney(cycleTxns.reduce((s, t) => s + t.amount, 0))
@@ -213,7 +208,7 @@ export function buildData(raw) {
     .map((s) => ({ m: s.monthKey, netWorth: s.netWorth, income: s.totalIncome, expenses: s.totalExpenses, savingsRate: s.savingsRate, savingsBalance: s.savingsBalance, assetBasis: s.assetBasis }))
     .sort((a, b) => a.m.localeCompare(b.m))
   if (!snapshots.length) {
-    snapshots = [{ m: NOW_MONTH, netWorth, income: monthlyIncome, expenses: thisMonth.spending, savingsRate: thisMonth.kept }]
+    snapshots = [{ m: nowMonth, netWorth, income: monthlyIncome, expenses: thisMonth.spending, savingsRate: thisMonth.kept }]
   }
 
   const profile = {
@@ -250,7 +245,7 @@ export function buildData(raw) {
 
   return {
     profile, txns, goals, assets, portfolios, bills, income, wishlist, upcoming,
-    snapshots, thisMonth, cashflow, cycleTxns, meetings, memory, netWorth, now: NOW_MONTH,
+    snapshots, thisMonth, cashflow, cycleTxns, meetings, memory, netWorth, now: nowMonth,
   }
 }
 
@@ -259,7 +254,19 @@ const EMPTY = {
   wishlist: [], upcoming: [], snapshots: [], meetings: [], memory: [], entries: [],
 }
 
+const localDay = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 export function useKeelaData(enabled = true) {
+  const [day, setDay] = useState(localDay)
+  useEffect(() => {
+    const refresh = () => setDay(localDay())
+    const timer = setInterval(refresh, 60000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
+  }, [])
   const [raw, setRaw] = useState(() => DEMO ? { ...demoRaw } : EMPTY)
   const [pending, setPending] = useState(true)
   const [error, setError] = useState(null)
@@ -295,6 +302,6 @@ export function useKeelaData(enabled = true) {
     ]
     return () => { active = false; unsubs.forEach(u => u()) }
   }, [enabled, retryKey])
-  const data = useMemo(() => buildData(raw), [raw])
+  const data = useMemo(() => buildData(raw, new Date(day + "T12:00:00")), [raw, day])
   return { data, loading: !DEMO && enabled && pending && !error, error, offline, retry: () => setRetryKey(k => k + 1) }
 }

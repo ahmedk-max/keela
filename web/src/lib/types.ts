@@ -47,6 +47,9 @@ export interface Transaction {
   createdAt: Timestamp
 }
 
+// Display lifecycle; the legacy persisted status remains unchanged.
+export type BucketPhase = 'active' | 'ready' | 'inuse' | 'paused' | 'completed' | 'archived'
+
 export interface Goal {
   id: string
   name: string
@@ -54,7 +57,10 @@ export interface Goal {
   allocated: number
   spent: number
   status: 'active' | 'completed' | 'paused'
-  targetDate?: string
+  targetDate?: string | null
+  archived?: boolean
+  pinned?: boolean
+  monthlyPlan?: number | null
   icon?: string
   color?: string
   createdAt: Timestamp
@@ -62,7 +68,7 @@ export interface Goal {
 
 export interface GoalEntry {
   id: string
-  type: 'deposit' | 'withdrawal'
+  type: 'deposit' | 'withdrawal' | 'spend'
   amount: number
   note?: string
   date: string

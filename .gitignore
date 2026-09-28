@@ -24,3 +24,6 @@ functions/lib/
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Local visual verification output
+web/tests/artifacts/

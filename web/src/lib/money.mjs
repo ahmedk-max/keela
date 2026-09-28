@@ -25,16 +25,22 @@ export function validDate(value) {
   const d = new Date(value + "T12:00:00Z");
   return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
+/** @returns {import('./types').BucketPhase} */
 export function bucketPhase(g) {
   if (g.archived) return "archived";
+  const balance = roundMoney((g.allocated || 0) - (g.spent || 0));
+  if (balance === 0 && (g.spent || 0) > 0) return "completed";
   if (g.status === "paused") return "paused";
+  // An active goal can need replenishing after spending. Its funding intent
+  // takes precedence over its activity history (e.g. an emergency fund).
+  if (g.status !== "completed" && balance < (g.target || 0)) return "active";
   if ((g.spent || 0) > 0) return "inuse";
   if (
     g.status === "completed" ||
-    (g.target > 0 && (g.allocated || 0) >= g.target)
+    (g.target > 0 && balance >= g.target)
   )
     return "ready";
-  return "saving";
+  return "active";
 }
 export function bucketMovement(g, input) {
   if (!g)

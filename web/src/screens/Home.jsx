@@ -17,6 +17,7 @@ import {
   cycleLabel,
 } from "../ui/compact";
 import { ContributionPlan } from "./Buckets";
+import { bucketPhase, groupBuckets } from "../lib/buckets.mjs";
 import { getCat } from "../lib/icons";
 import { Progress } from "../ui/primitives";
 
@@ -44,7 +45,7 @@ export function Home({ data, nav }) {
     },
     { label: "Left to spend", value: Math.max(0, left), color: th.green },
   ];
-  const current = data.goals.filter((g) => !g.archived),
+  const current = groupBuckets(data.goals).flatMap((group) => group.goals).filter((g) => !["completed", "paused"].includes(bucketPhase(g))),
     pinned = current.filter((g) => g.pinned),
     show = pinned.length ? pinned : current.slice(0, 3);
   const total = data.goals.reduce((s, g) => s + balanceOf(g), 0);
@@ -103,10 +104,6 @@ export function Home({ data, nav }) {
       <Section title="Monthly flow" detail={`${fmt(cf.income)} SAR income`}>
         <SplitBar items={flow} />
         <Legend items={flow} />
-        <div className="c-meta" style={{ marginTop: 12 }}>
-          <span>{cf.target}% saving target</span>
-          <span>{elapsed} months on the pact</span>
-        </div>
         {left < 0 && (
           <p className="c-form-note c-error-text">
             Spending is {fmt(-left)} SAR over the living allowance.
@@ -197,7 +194,7 @@ export function Home({ data, nav }) {
           saving target
         </p>
       </details>
-      {plan && <ContributionPlan data={data} onClose={() => setPlan(false)} />}
+      {plan && <ContributionPlan data={data} onClose={() => setPlan(false)} onEdit={nav.editBucket} />}
     </Page>
   );
 }

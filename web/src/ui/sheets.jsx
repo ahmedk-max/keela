@@ -229,6 +229,7 @@ export function Field({
       <input
         value={value}
         onChange={onChange}
+        onInput={type === "month" || type === "date" ? onChange : undefined}
         placeholder={placeholder}
         type={type}
         inputMode={inputMode}

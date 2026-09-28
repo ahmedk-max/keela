@@ -72,7 +72,7 @@ export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, s
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke}
           strokeLinecap={pct > 0 ? 'round' : 'butt'} strokeDasharray={circ} strokeDashoffset={off}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 760ms cubic-bezier(.2,.8,.2,1)' }}
+          style={{ transition: 'stroke-dashoffset 220ms cubic-bezier(.2,.8,.2,1)' }}
         />
       </svg>
       {children != null && (
@@ -115,8 +115,8 @@ export function StackedBar({ segs = [], height = 14, gap = 3, radius = 999, trac
       {segs.filter((s) => s.w > 0).map((s, i) => (
         <div key={i} style={{
           width: `${s.w}%`, background: s.color, borderRadius: radius, minWidth: 2,
-          transformOrigin: 'left center',
-          animation: animate && !prefersReduced() ? 'kgrowx 620ms cubic-bezier(.2,.8,.2,1) both' : undefined,
+          transformOrigin: 'left center', transition: 'width 220ms cubic-bezier(.2,.8,.2,1)',
+          animation: animate && !prefersReduced() ? 'kgrowx 220ms cubic-bezier(.2,.8,.2,1) both' : undefined,
         }} />
       ))}
     </div>
@@ -129,7 +129,7 @@ export function Progress({ pct = 0, color, track, height = 10, radius = 999, sty
   return (
     <div style={{ position: 'relative', height, borderRadius: radius, background: track || th.track, overflow: 'hidden', ...style }}>
       <div style={{ height: '100%', borderRadius: radius, width: `${Math.min(100, Math.max(0, pct))}%`,
-        background: color || th.accent, transition: 'width 560ms cubic-bezier(.2,.8,.2,1)' }} />
+        background: color || th.accent, transition: 'width 220ms cubic-bezier(.2,.8,.2,1)' }} />
     </div>
   )
 }
@@ -291,16 +291,16 @@ export function DetailShell({ onClose, right, children }) {
   return (
     <div ref={ref} className={`k-detail c-detail${closing ? ' out' : ''}`} style={{ background: th.bg }}>
       {/* Flush at the top edge to match the list screens (.k-screen has 0 top padding). */}
-      <div style={{ flex: 'none', padding: `8px ${GUTTER}px 8px`,
+      <div style={{ flex: 'none', padding: '8px var(--c-gutter) 8px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
-          background: th.card2, borderRadius: 999, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
+          background: th.card2, borderRadius: 999, minHeight: 44, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
           color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>
           <span style={{ fontSize: 16, lineHeight: 0 }}>‹</span> Back
         </button>
         {right || null}
       </div>
-      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: `6px ${GUTTER}px calc(94px + env(safe-area-inset-bottom))` }}>{children}</div>
+      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px var(--c-gutter) calc(100px + env(safe-area-inset-bottom))' }}>{children}</div>
     </div>
   )
 }

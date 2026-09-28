@@ -1,46 +1,24 @@
 import React from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Mark, Ring, Icons, StackedBar } from "./primitives";
 import { useTheme } from "../lib/theme";
-import { fmt, fmtDay, monthsBetween } from "../lib/format";
-import { bucketPhase, roundMoney } from "../lib/money.mjs";
+import { fmt, fmtDay } from "../lib/format";
+import { roundMoney } from "../lib/money.mjs";
+import {
+  balanceOf,
+  bucketPhase,
+  phaseLabel,
+  monthlyRequired,
+  contributionSummary,
+} from "../lib/buckets.mjs";
+export { balanceOf, phaseLabel, cycleAmount } from "../lib/buckets.mjs";
 
-export const balanceOf = (g) => roundMoney((g.allocated || 0) - (g.spent || 0));
-export const phaseLabel = {
-  saving: "Saving",
-  ready: "Ready to use",
-  inuse: "In use",
-  paused: "Paused",
-  archived: "Archived",
-};
-export const inCycle = (entry, cf) =>
-  entry.date >= cf.cycleStart && entry.date < cf.cycleEnd;
-export const cycleAmount = (g, cf, type) =>
-  roundMoney(
-    (g.entries || [])
-      .filter((e) => inCycle(e, cf) && e.type === type)
-      .reduce((s, e) => s + e.amount, 0),
-  );
 export const cycleLabel = (cf) => {
   const end = new Date(cf.cycleEnd + "T12:00:00");
   end.setDate(end.getDate() - 1);
   const last = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
   return `${fmtDay(cf.cycleStart)} – ${fmtDay(last)}`;
 };
-export function monthlyPlan(g, cf) {
-  const phase = bucketPhase(g);
-  if (["paused", "archived", "ready"].includes(phase)) return 0;
-  if (g.monthlyPlan != null) return g.monthlyPlan;
-  if (phase === "inuse") return 0;
-  const net =
-    cycleAmount(g, cf, "deposit") -
-    cycleAmount(g, cf, "withdrawal") -
-    cycleAmount(g, cf, "spend");
-  const opening = balanceOf(g) - net;
-  return Math.ceil(
-    Math.max(0, g.target - opening) /
-      Math.max(1, monthsBetween(cf.cycleStart.slice(0, 7), g.targetDate)),
-  );
-}
 export function Money({ value, large = false }) {
   return <span className={large ? "c-money" : "c-num"}>{fmt(value)}</span>;
 }
@@ -63,9 +41,15 @@ export function Action({
   );
 }
 export function Page({ title, subtitle, action, nav, children }) {
-  const th = useTheme();
+  const th = useTheme(),
+    reduced = useReducedMotion();
   return (
-    <div className="k-screen c-page">
+    <motion.div
+      className="k-screen c-page"
+      initial={reduced ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduced ? 0 : 0.18 }}
+    >
       <div className="c-brand">
         <Mark size={26} color={th.accent} />
         <span>Keela</span>
@@ -87,12 +71,14 @@ export function Page({ title, subtitle, action, nav, children }) {
           ))}
       </header>
       {children}
-    </div>
+    </motion.div>
   );
 }
 export function Hero({ label, amount, subtitle, ring, children }) {
   return (
-    <section className="c-hero">
+    <section
+      className={`c-hero${fmt(amount).length > 9 ? " c-hero-large-amount" : ""}${fmt(amount).length > 15 ? " c-hero-full-amount" : ""}`}
+    >
       <div className="c-hero-row">
         <div>
           <p>{label}</p>
@@ -140,20 +126,70 @@ export function MetricRing({
     </div>
   );
 }
-export function Section({ title, detail, action, children, className = "" }) {
+export function Section({
+  title,
+  detail,
+  action,
+  children,
+  className = "",
+  collapsible = false,
+}) {
+  const [open, setOpen] = React.useState(!collapsible);
+  const id = React.useId(),
+    reduced = useReducedMotion();
   return (
     <section className={`c-section ${className}`}>
       <header>
-        <h2>{title}</h2>
-        {action || (detail && <span className="c-muted">{detail}</span>)}
+        {collapsible ? (
+          <h2 className="c-section-heading">
+            <button
+              className="c-section-toggle"
+              aria-expanded={open}
+              aria-controls={id}
+              onClick={() => setOpen(!open)}
+            >
+              <span>{title}</span>
+              <span className="c-muted">{detail}</span>
+              <span className="c-chevron" data-open={open} aria-hidden="true">
+                ⌄
+              </span>
+            </button>
+          </h2>
+        ) : (
+          <>
+            <h2>{title}</h2>
+            {action || (detail && <span className="c-muted">{detail}</span>)}
+          </>
+        )}
       </header>
-      {children}
+      {collapsible ? (
+        <div id={id}>
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                key="content"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: reduced ? 0 : 0.2 }}
+                style={{ overflow: "hidden" }}
+              >
+                {children}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        children
+      )}
     </section>
   );
 }
 export function Legend({ items }) {
   return (
-    <div className="c-legend">
+    <div
+      className={`c-legend${items.some((x) => fmt(x.value).length > 9) ? " c-legend-wide" : ""}`}
+    >
       {items.map((x) => (
         <div key={x.label}>
           <span>
@@ -190,75 +226,79 @@ export function SplitBar({ items, height = 9 }) {
 export function Contribution({ data, onPlan }) {
   const th = useTheme(),
     cf = data.cashflow;
-  const added = roundMoney(
-    data.goals.reduce((s, g) => s + cycleAmount(g, cf, "deposit"), 0),
-  );
-  const plan = data.goals.reduce((s, g) => s + monthlyPlan(g, cf), 0);
-  const budget = roundMoney((cf.income * cf.target) / 100);
+  const { required, budget, remaining, percent, missingDeadlines } =
+    contributionSummary(data.goals, cf);
+  const incomplete = missingDeadlines > 0;
   return (
     <Section
       title="Monthly contribution"
       action={
         onPlan && (
           <Action small onClick={onPlan}>
-            Plan ›
+            Breakdown ›
           </Action>
         )
       }
     >
-      <div className="c-value-line">
-        <span>
-          <strong className="c-medium">
-            <Money value={added} />
-          </strong>
-          <span className="c-muted"> / {fmt(plan)} planned</span>
-        </span>
-        <span className="c-muted">
-          {plan ? Math.round((added / plan) * 100) : 0}%
-        </span>
-      </div>
-      <SplitBar
-        items={[
-          {
-            label: "Contributed",
-            value: Math.min(added, plan),
-            color: th.accent,
-          },
-          {
-            label: "Still to add",
-            value: Math.max(0, plan - added),
-            color: th.track,
-          },
-        ]}
-      />
-      <div className="c-meta">
-        <span>{fmt(Math.max(0, plan - added))} left to contribute</span>
-        <span>{cycleLabel(cf)}</span>
-      </div>
-      <div className="c-stat-row">
+      <div className="c-contribution-values">
         <div>
-          Planned / month
-          <strong>
-            <Money value={plan} />
+          <span className="c-muted">
+            Required monthly{incomplete ? " · known targets" : ""}
+          </span>
+          <strong className="c-medium">
+            <Money value={required} />
+            {incomplete ? "+" : ""}
           </strong>
         </div>
         <div>
-          Save budget
-          <strong>
+          <span className="c-muted">{cf.target}% savings budget</span>
+          <strong className="c-medium">
             <Money value={budget} />
           </strong>
         </div>
-        <div>
-          {budget >= plan ? "Headroom" : "Shortfall"}
-          <strong className={budget < plan ? "c-error-text" : ""}>
-            <Money value={Math.abs(budget - plan)} />
-          </strong>
-        </div>
       </div>
+      <div
+        className="c-requirement-track"
+        role="img"
+        aria-label={`${fmt(required)} SAR required of ${fmt(budget)} SAR savings budget${incomplete ? "; incomplete: missing deadlines" : ""}`}
+      >
+        <i
+          style={{
+            width: `${budget > 0 ? Math.min(100, (required / budget) * 100) : required > 0 ? 100 : 0}%`,
+            background: remaining < 0 ? th.loss : th.accent,
+          }}
+        />
+      </div>
+      <div className="c-meta">
+        <span>
+          {percent == null
+            ? "No savings budget"
+            : `${incomplete ? "At least " : ""}${percent}% needed`}
+        </span>
+        <span className={remaining < 0 ? "c-error-text" : ""}>
+          {incomplete ? (remaining < 0 ? "At least " : "Up to ") : ""}
+          {fmt(Math.abs(remaining))}{" "}
+          {remaining < 0 ? "shortfall" : "budget remaining"}
+        </span>
+      </div>
+      {incomplete && (
+        <p className="c-form-note">
+          {missingDeadlines}{" "}
+          {missingDeadlines === 1 ? "bucket needs" : "buckets need"} a deadline.
+        </p>
+      )}
     </Section>
   );
 }
-export function BucketRow({ g, data, nav }) {
+export function BucketRow({
+  g,
+  data,
+  nav,
+  showPhase = true,
+  animateLayout = false,
+  trailing,
+}) {
+  const reduced = useReducedMotion();
   const th = useTheme(),
     phase = bucketPhase(g),
     balance = balanceOf(g),
@@ -276,44 +316,74 @@ export function BucketRow({ g, data, nav }) {
           : 0,
     ),
   );
-  const plan = monthlyPlan(g, data.cashflow);
+  const required = monthlyRequired(g, data.cashflow);
   return (
-    <div className="c-row c-bucket-row">
+    <motion.div
+      className="c-row c-bucket-row"
+      layout={animateLayout && !reduced ? "position" : false}
+      layoutId={animateLayout && !reduced ? `bucket-${g.id}` : undefined}
+      transition={{ duration: reduced ? 0 : 0.22 }}
+    >
       <button
         className="c-row-main"
         aria-label={`Open ${g.name}`}
         onClick={() => nav.openBucket(g.id)}
       >
-        <MetricRing
-          pct={pct}
-          size={36}
-          color={used ? th.green : g.color}
-          small
-        />
+        {phase === "completed" ? (
+          <span className="c-complete-mark" aria-label="Completed">
+            ✓
+          </span>
+        ) : (
+          <MetricRing
+            pct={pct}
+            size={36}
+            color={used ? th.green : g.color}
+            small
+          />
+        )}
         <span className="c-row-content">
           <span className="c-row-title">
             <span>{g.name}</span>
             <Money value={balance} />
           </span>
           <span className="c-meta">
-            <span>{phaseLabel[phase]}</span>
             <span>
-              {used ? `${fmt(g.spent)} spent` : `of ${fmt(g.target)}`}
+              {g.pinned && <span aria-label="Pinned">◆ </span>}
+              {showPhase
+                ? phaseLabel[phase]
+                : phase === "active"
+                  ? required === null
+                    ? "Set deadline"
+                    : `${fmt(required)} /mo required`
+                  : phase === "completed"
+                    ? "Fully used"
+                    : used
+                      ? `${fmt(g.spent)} of ${fmt(g.allocated)} spent`
+                      : g.targetDate || "No deadline"}
+            </span>
+            <span>
+              {used
+                ? showPhase
+                  ? `${fmt(g.spent)} spent`
+                  : ""
+                : phase === "completed"
+                  ? `${fmt(g.spent)} spent`
+                  : `of ${fmt(g.target)}`}
             </span>
           </span>
-          {plan > 0 && <span className="c-meta">{fmt(plan)} /mo planned</span>}
         </span>
       </button>
-      {!g.archived && (
-        <button
-          className="c-quick-add"
-          aria-label={`Deposit to ${g.name}`}
-          onClick={() => nav.moveBucket(g.id, "deposit")}
-        >
-          +
-        </button>
-      )}
-    </div>
+      {trailing ||
+        (!g.archived && phase !== "completed" && (
+          <button
+            className="c-quick-add"
+            aria-label={`Deposit to ${g.name}`}
+            onClick={() => nav.moveBucket(g.id, "deposit")}
+          >
+            +
+          </button>
+        ))}
+    </motion.div>
   );
 }
 export function LineChart({

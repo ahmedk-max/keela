@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
@@ -112,7 +113,7 @@ function TabBar({
               justifyContent: "center",
               gap: 7,
               cursor: "pointer",
-              transition: "flex .28s cubic-bezier(.2,.8,.2,1)",
+              transition: "flex .22s cubic-bezier(.2,.8,.2,1), background .18s ease",
             }}
           >
             <TabGlyph name={t.glyph} color={on ? "#fff" : th.ink3} />
@@ -419,6 +420,7 @@ export default function App() {
     openMeeting: (id: string) => setOverlay({ kind: "meeting", id }),
     addBucket: () => setSheet({ kind: "bucketEdit", goalId: null }),
     editBucket: (id: string) => setSheet({ kind: "bucketEdit", goalId: id }),
+    restoreBucket: (id: string) => archiveGoal(id, false),
     editCatBudget: (cat: string, cap: number) =>
       setSheet({ kind: "catBudget", cat, cap }),
     addPortfolio: () => setSheet({ kind: "pfEdit", portfolio: null }),
@@ -598,7 +600,7 @@ export default function App() {
         id: null,
         name: "",
         target: 0,
-        targetDate: NOW_MONTH,
+        targetDate: null,
         status: "active",
         color: undefined,
         note: "",
@@ -665,14 +667,14 @@ export default function App() {
     content = (
       <>
         <div className="k-app">
-          <div className="k-scroll" ref={scrollRef}>
+          <motion.div className="k-scroll" ref={scrollRef} layoutScroll>
             {offline && (
               <div className="c-status-banner" role="status">
                 Offline · showing saved records. Reconnect to save changes.
               </div>
             )}
             {screen}
-          </div>
+          </motion.div>
         </div>
         {overlayEl}
         {savedNotice && (

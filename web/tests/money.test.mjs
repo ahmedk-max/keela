@@ -48,7 +48,7 @@ test("new zero bucket accepts deposits, withdrawals and spending with exact cent
     },
     { allocated: 400, spent: 50, balance: 350 },
   );
-  assert.equal(bucketPhase(g), "inuse");
+  assert.equal(bucketPhase(g), "active");
   assert.throws(
     () => bucketMovement(g, { type: "withdrawal", amount: 350.01, date }),
     /balance/,

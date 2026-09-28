@@ -25,7 +25,7 @@ function FeaturedNote({ m, onOpen, th }) {
         border: `1px solid ${th.line}`,
         background: th.card,
         borderRadius: 22,
-        padding: "18px 18px 15px",
+        padding: 20,
         cursor: "pointer",
         boxShadow: th.shadow,
         overflow: "hidden",
@@ -157,7 +157,7 @@ function Notes({ meetings, nav, th }) {
               display: "flex",
               alignItems: "center",
               gap: 11,
-              margin: "30px 2px 4px",
+              margin: "24px 0 4px",
             }}
           >
             <span
@@ -372,7 +372,6 @@ export function Keela({ data, nav, sub, setSub }) {
   return (
     <Page
       title="Your companion"
-      subtitle="Notes, plans & the things worth remembering"
       nav={nav}
     >
       <div className="c-filters">

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keela — reduced motion check</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      // Development-only manual test harness. Vite builds only index.html.
+      // Use /tests/reduced-motion.html?demo; never connect this harness to live data.
+      import "../src/index.css";
+      if (
+        !import.meta.env.DEV ||
+        !new URLSearchParams(location.search).has("demo")
+      ) {
+        throw new Error("This check requires the local demo.");
+      }
+      const nativeMatchMedia = window.matchMedia.bind(window);
+      window.matchMedia = (query) =>
+        query.includes("prefers-reduced-motion")
+          ? {
+              media: query,
+              matches: true,
+              onchange: null,
+              addListener() {},
+              removeListener() {},
+              addEventListener() {},
+              removeEventListener() {},
+              dispatchEvent() {
+                return true;
+              },
+            }
+          : nativeMatchMedia(query);
+      // Exercise the existing CSS reduced-motion branches as well as JS hooks,
+      // without changing the computer's accessibility preference.
+      for (const sheet of document.styleSheets) {
+        for (const rule of sheet.cssRules) {
+          if (
+            rule instanceof CSSMediaRule &&
+            rule.conditionText.includes("prefers-reduced-motion")
+          ) {
+            rule.media.mediaText = "all";
+          }
+        }
+      }
+      await import("../src/main.tsx");
+    </script>
+  </body>
+</html>
