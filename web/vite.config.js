@@ -24,6 +24,7 @@ export default defineConfig(function (_a) {
             react(),
             VitePWA({
                 registerType: 'autoUpdate',
+                workbox: { globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'] },
                 manifest: {
                     name: 'Keela',
                     short_name: 'Keela',

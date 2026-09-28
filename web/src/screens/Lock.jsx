@@ -1,88 +1,29 @@
-/* Keela — sign-in lock + loading gate ("Warm" language) */
-import { useTheme } from '../lib/theme'
-import { Mark } from '../ui/primitives'
-
-/* Layered drifting waves along the bottom of the splash surfaces. Each layer is
-   a two-tile SVG (the path repeats exactly at half its width) sliding -50% on a
-   loop, so the seam never shows. Low-opacity accent fills keep text readable. */
-function wavePath(amp, mid, W = 2880, H = 190, half = 360) {
-  let d = `M0 ${mid}`
-  let up = true
-  for (let x = 0; x < W; x += half) {
-    const cy = up ? mid - amp : mid + amp
-    d += ` C${x + half * 0.36} ${cy}, ${x + half * 0.64} ${cy}, ${x + half} ${mid}`
-    up = !up
-  }
-  return d + ` L${W} ${H} L0 ${H} Z`
-}
-
-export function Waves() {
-  const th = useTheme()
-  const layers = [
-    { mid: 60, amp: 22, dur: 34, op: 0.08, rev: false },
-    { mid: 92, amp: 28, dur: 24, op: 0.12, rev: true },
-    { mid: 124, amp: 24, dur: 17, op: 0.18, rev: false },
-  ]
-  return (
-    <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, overflow: 'hidden', pointerEvents: 'none' }}>
-      {layers.map((l, i) => (
-        <svg key={i} className="k-wave" viewBox="0 0 2880 190" preserveAspectRatio="none"
-          style={{ position: 'absolute', bottom: 0, left: 0, width: '200%', height: '100%',
-            animationDuration: `${l.dur}s`, animationDirection: l.rev ? 'reverse' : 'normal' }}>
-          <path d={wavePath(l.amp, l.mid)} fill={th.accent} opacity={l.op} />
-        </svg>
-      ))}
-    </div>
-  )
-}
+import React from 'react';
+import { Mark } from '../ui/primitives';
 
 export function Lock({ onSignIn, denied }) {
-  const th = useTheme()
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: '0 32px 40px', textAlign: 'center', background: th.bg, position: 'relative', overflow: 'hidden' }}>
-      <Waves />
-      <span style={{ width: 76, height: 76, borderRadius: 26, background: th.accent, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', marginBottom: 26, boxShadow: th.shadow }}>
-        <Mark size={42} color="#fff" />
-      </span>
-      <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', color: th.ink }}>Keela</div>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: th.ink3, marginTop: 12 }}>The seeing face</div>
-      <div style={{ fontSize: 15, lineHeight: 1.6, fontStyle: 'italic', color: th.ink2, marginTop: 34, maxWidth: 270, textWrap: 'pretty' }}>
-        &ldquo;I keep the numbers. You keep the pact. Sign in and I&rsquo;ll show you where we stand.&rdquo;
-      </div>
-      <div style={{ position: 'absolute', left: 32, right: 32, bottom: 'max(40px, calc(env(safe-area-inset-bottom) + 28px))',
-        display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {denied && (
-          <div style={{ borderRadius: 14, padding: '12px 14px', background: th.accentSoft,
-            fontSize: 12.5, lineHeight: 1.5, color: th.loss, fontWeight: 600 }}>
-            That account isn&rsquo;t authorized. Keela is private to one account.
-          </div>
-        )}
-        <button onClick={onSignIn} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          padding: 15, borderRadius: 16, border: `1px solid ${th.line}`, background: th.card, color: th.ink,
-          fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          <span style={{ width: 22, height: 22, borderRadius: 7, border: `1px solid ${th.line}`, display: 'grid',
-            placeItems: 'center', fontWeight: 800, fontSize: 12 }}>G</span>
-          {denied ? 'Try another account' : 'Continue with Google'}
-        </button>
-        <div style={{ fontSize: 11, color: th.ink3, letterSpacing: '0.02em', lineHeight: 1.5 }}>
-          One account. No password. Without it, the app shows nothing.
-        </div>
-      </div>
+  const [busy, setBusy] = React.useState(false), [error, setError] = React.useState('');
+  const lock = React.useRef(false);
+  return <div className="c-lock">
+    <div className="c-lock-brand"><Mark size={48} /><h1>Keela</h1><p>The seeing face</p></div>
+    <p className="c-lock-quote">“I keep the numbers. You keep the pact.”</p>
+    <div className="c-lock-actions">
+      <p className="c-muted">Your financial life, thoughtfully kept.</p>
+      {(denied || error) && <p className="c-sheet-error" role="alert">{denied ? 'This account isn’t authorized. Sign in with your personal account.' : error}</p>}
+      <button className="c-button c-primary" disabled={busy} onClick={async () => {
+        if (lock.current) return;
+        lock.current = true; setBusy(true); setError('');
+        try { await onSignIn(); }
+        catch { setError('Sign-in didn’t finish. Please try again.'); }
+        finally { lock.current = false; setBusy(false); }
+      }}>{busy && <span className="c-spinner" aria-hidden="true" />}{busy ? 'Signing in…' : denied ? 'Try another account' : 'Continue with Google'}</button>
+      <span className="c-form-note">Only your authorized account can access Keela.</span>
     </div>
-  )
+  </div>;
 }
-
 export function Loading() {
-  const th = useTheme()
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', gap: 20, background: th.bg, position: 'relative', overflow: 'hidden' }}>
-      <Waves />
-      <Mark size={46} color={th.accent} style={{ animation: 'kpulse 1.4s ease-in-out infinite' }} />
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: th.ink3 }}>Reading the numbers&hellip;</div>
-      <style>{`@keyframes kpulse{0%,100%{opacity:.35}50%{opacity:1}}`}</style>
-    </div>
-  )
+  return <div className="c-state-page" role="status" aria-label="Loading your records">
+    <Mark size={40} color="var(--c-accent)" /><h1>Reading the numbers</h1><p className="c-muted">Your records will be ready in a moment.</p>
+    <div className="c-loading-lines" aria-hidden="true"><i /><i /><i /></div>
+  </div>;
 }

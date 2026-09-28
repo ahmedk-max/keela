@@ -1,4 +1,6 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
+import { motionVariables, useTransition } from "./ui/motion";
+import { DetailNavigationContext } from "./ui/detail";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
@@ -16,7 +18,7 @@ import { NOW_MONTH } from "./lib/format";
 import { DEMO } from "./data/demo";
 import { useAuth } from "./auth/AuthContext";
 import { useKeelaData } from "./data/useKeelaData";
-import { ThemeContext, themeFor, useTheme } from "./lib/theme";
+import { ThemeContext, themeFor } from "./lib/theme";
 import { TabGlyph } from "./ui/primitives";
 import { Lock, Loading } from "./screens/Lock";
 import { Home } from "./screens/Home";
@@ -59,8 +61,7 @@ const TABS = [
   { v: "keela", label: "Keela", glyph: "keela" },
 ] as const;
 
-// Floating, blurred pill tab bar. The active tab grows (flex transition) and
-// reveals its label beside the glyph — the design's signature bottom nav.
+// A floating navigation bar with stable targets and persistent labels.
 function TabBar({
   tab,
   onChange,
@@ -68,75 +69,36 @@ function TabBar({
   tab: string;
   onChange: (v: string) => void;
 }) {
-  const th = useTheme();
   return (
-    <nav
-      className="k-tabbar"
-      aria-label="Main navigation"
-      style={{
-        position: "fixed",
-        left: 16,
-        right: 16,
-        zIndex: 75,
-        // Float just above the home-indicator zone — don't STACK a gap on top of the
-        // safe inset (that left ~48px of dead space on notch/island phones). Sit a
-        // touch inside the inset so the pill hugs the bottom; 12px floor for flat-bottom devices.
-        bottom: "max(12px, calc(env(safe-area-inset-bottom) - 8px))",
-        display: "flex",
-        alignItems: "center",
-        gap: 3,
-        background: th.tabbar,
-        border: `1px solid ${th.line}`,
-        borderRadius: 24,
-        padding: 7,
-        boxShadow: "0 12px 34px rgba(30,22,12,.16)",
-        backdropFilter: "blur(18px) saturate(1.3)",
-        WebkitBackdropFilter: "blur(18px) saturate(1.3)",
-      }}
-    >
+    <nav className="k-tabbar" aria-label="Main navigation">
       {TABS.map((t) => {
         const on = tab === t.v;
-        return (
-          <button
-            key={t.v}
-            onClick={() => onChange(t.v)}
-            aria-label={t.label}
-            aria-current={on ? "page" : undefined}
-            style={{
-              flex: on ? 2.3 : 1,
-              border: "none",
-              background: on ? th.accent : "transparent",
-              borderRadius: 999,
-              padding: "11px 0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 7,
-              cursor: "pointer",
-              transition: "flex .22s cubic-bezier(.2,.8,.2,1), background .18s ease",
-            }}
-          >
-            <TabGlyph name={t.glyph} color={on ? "#fff" : th.ink3} />
-            {on && (
-              <span
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  color: "#fff",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t.label}
-              </span>
-            )}
-          </button>
-        );
+        return <button key={t.v} onClick={() => onChange(t.v)} aria-label={t.label}
+          aria-current={on ? "page" : undefined} className={on ? 'is-active' : ''}>
+          <TabGlyph name={t.glyph} color="currentColor" />
+          <span className="k-tab-label" aria-hidden="true">{t.label}</span>
+        </button>;
       })}
     </nav>
   );
 }
 
+type DisplayRecord = { id: string; [field: string]: any };
+type DetailState = { kind: 'bucket' | 'portfolio' | 'meeting'; id: string }
+  | { kind: 'holding'; id: string; portfolioId?: string };
+type SheetState = { kind: 'tx'; tx: DisplayRecord | null }
+  | { kind: 'bill'; bill: DisplayRecord | null }
+  | { kind: 'upcoming' | 'wish'; item: DisplayRecord | null }
+  | { kind: 'bucketEdit'; goalId: string | null }
+  | { kind: 'bucketMove'; goalId: string; mode: string }
+  | { kind: 'catBudget'; cat: string; cap: number }
+  | { kind: 'pfEdit'; portfolio: DisplayRecord | null | undefined }
+  | { kind: 'holdEdit'; holding: DisplayRecord | null; portfolioId: string | null }
+  | { kind: 'holdAct'; holding: DisplayRecord; mode: string }
+  | { kind: 'settings' };
+
 export default function App() {
+  const { transition: feedbackTransition } = useTransition("fade");
   const { user, loading: authLoading, denied, signIn, signOut } = useAuth();
   const {
     data,
@@ -157,8 +119,10 @@ export default function App() {
   const [spendSub, setSpendSub] = useState("tx");
   const [bucketSub, setBucketSub] = useState("all");
   const [keelaSub, setKeelaSub] = useState("notes");
-  const [overlay, setOverlay] = useState<any>(null);
-  const [sheet, setSheet] = useState<any>(null);
+  const [overlay, setOverlay] = useState<DetailState | null>(null);
+  const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [detailDirection, setDetailDirection] = useState(1);
+  const detailPositions = useRef<Record<string, {scroll: number; focus: string | null}>>({});
   const positions = useRef<Record<string, number>>({});
   const [createdGoal, setCreatedGoal] = useState<any>(null);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -237,6 +201,19 @@ export default function App() {
     ).catch((e) => console.error("snapshot failed", e));
   }, [user, dataLoading, data, dataError, offline]);
 
+  const navigateDetail = (next: DetailState | null, direction = 1) => {
+    const scroller = document.querySelector<HTMLElement>('.c-detail-scroll');
+    if (overlay && scroller) {
+      const focused = document.activeElement;
+      detailPositions.current[`${overlay.kind}:${overlay.id}`] = {
+        scroll: scroller.scrollTop,
+        focus: focused?.getAttribute('aria-label') || focused?.textContent || null,
+      };
+    }
+    setDetailDirection(direction);
+    setOverlay(next);
+  };
+
   const goTab = (v: string) => {
     if (scrollRef.current) positions.current[tab] = scrollRef.current.scrollTop;
     setOverlay(null);
@@ -293,7 +270,7 @@ export default function App() {
       });
       setBucketSub("all");
       goTab("buckets");
-      setOverlay({ kind: "bucket", id });
+      navigateDetail({ kind: "bucket", id });
     }
   };
   const savePortfolio = (id: string | undefined, f: any) =>
@@ -413,11 +390,11 @@ export default function App() {
     editUpcoming: (u: any) => setSheet({ kind: "upcoming", item: u }),
     addWishlist: () => setSheet({ kind: "wish", item: null }),
     editWishlist: (w: any) => setSheet({ kind: "wish", item: w }),
-    openBucket: (id: string) => setOverlay({ kind: "bucket", id }),
-    openPortfolio: (id: string) => setOverlay({ kind: "portfolio", id }),
+    openBucket: (id: string) => navigateDetail({ kind: "bucket", id }),
+    openPortfolio: (id: string) => navigateDetail({ kind: "portfolio", id }),
     openHolding: (id: string, portfolioId: string) =>
-      setOverlay({ kind: "holding", id, portfolioId }),
-    openMeeting: (id: string) => setOverlay({ kind: "meeting", id }),
+      navigateDetail({ kind: "holding", id, portfolioId }),
+    openMeeting: (id: string) => navigateDetail({ kind: "meeting", id }),
     addBucket: () => setSheet({ kind: "bucketEdit", goalId: null }),
     editBucket: (id: string) => setSheet({ kind: "bucketEdit", goalId: id }),
     restoreBucket: (id: string) => archiveGoal(id, false),
@@ -450,9 +427,7 @@ export default function App() {
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
   };
 
-  const handleSignIn = () => {
-    signIn().catch((e) => console.error("sign-in failed", e));
-  };
+  const handleSignIn = () => signIn();
 
   let content: JSX.Element;
   if (authLoading) {
@@ -499,8 +474,8 @@ export default function App() {
           <BucketDetail
             g={g}
             data={{ ...data, goals }}
-            onSwitch={(id: string) => setOverlay({ kind: "bucket", id })}
-            onClose={() => setOverlay(null)}
+            onSwitch={(id: string) => navigateDetail({ kind: "bucket", id })}
+            onClose={() => navigateDetail(null, -1)}
             onMove={(id: string, mode: string) =>
               setSheet({ kind: "bucketMove", goalId: id, mode })
             }
@@ -515,7 +490,7 @@ export default function App() {
         overlayEl = (
           <PortfolioDetail
             p={p}
-            onClose={() => setOverlay(null)}
+            onClose={() => navigateDetail(null, -1)}
             onEdit={(id: string) => nav.editPortfolio(id)}
             onAddHolding={() => nav.addHolding(p.isDefault ? null : p.id)}
             onOpenHolding={(hid: string) => nav.openHolding(hid, p.id)}
@@ -534,7 +509,7 @@ export default function App() {
             h={h}
             portfolio={p || { value: h.current, name: "Portfolio" }}
             onClose={() =>
-              setOverlay(p ? { kind: "portfolio", id: p.id } : null)
+              navigateDetail(p ? { kind: "portfolio", id: p.id } : null, -1)
             }
             onEdit={() => nav.editHolding(h)}
             onAct={(mode: string) => nav.actHolding(h, mode)}
@@ -543,7 +518,7 @@ export default function App() {
     } else if (overlay?.kind === "meeting") {
       const m = data.meetings.find((x: any) => x.id === overlay.id);
       if (m)
-        overlayEl = <MeetingDetail m={m} onClose={() => setOverlay(null)} />;
+        overlayEl = <MeetingDetail m={m} onClose={() => navigateDetail(null, -1)} />;
     }
 
     let sheetEl: JSX.Element | null = null;
@@ -676,12 +651,15 @@ export default function App() {
             {screen}
           </motion.div>
         </div>
-        {overlayEl}
-        {savedNotice && (
-          <div className="c-toast" role="status">
+        {overlayEl && overlay && <DetailNavigationContext.Provider key={`${overlay.kind}:${overlay.id}`}
+          value={{ id: `${overlay.kind}:${overlay.id}`, direction: detailDirection, positions: detailPositions }}>
+          {overlayEl}
+        </DetailNavigationContext.Provider>}
+        <AnimatePresence>
+          {savedNotice && <motion.div className="c-toast" role="status" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={feedbackTransition}>
             ✓ Changes saved
-          </div>
-        )}
+          </motion.div>}
+        </AnimatePresence>
         <TabBar tab={tab} onChange={goTab} />
         {sheetEl}
       </>
@@ -689,10 +667,11 @@ export default function App() {
   }
 
   return (
-    <ThemeContext.Provider value={themeFor(theme)}>
-      <div className="k-root" data-theme={theme}>
+    <MotionConfig reducedMotion="user"><ThemeContext.Provider value={themeFor(theme)}>
+      <div className="k-root" data-theme={theme} style={motionVariables as React.CSSProperties}>
         {content}
+        <div id="k-overlays" />
       </div>
-    </ThemeContext.Provider>
+    </ThemeContext.Provider></MotionConfig>
   );
 }

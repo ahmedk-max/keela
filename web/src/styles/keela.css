@@ -3,9 +3,8 @@
    Plus Jakarta Sans for text · JetBrains Mono for NUMERALS ONLY · terracotta
    ember accent · generous radii · soft shadows.
 
-   Component visuals are inline-styled from the JS theme (lib/theme.js). This
-   sheet owns only: fonts, the shell/native surfaces (themed CSS vars), the
-   keyframes, scrollbar hiding, safe-areas, and reduced-motion.
+   Palette and controls live in tokens.css and controls.css. This sheet owns
+   the local numeral fonts, app shell, and shared graphic keyframes.
    ========================================================================= */
 
 /* JetBrains Mono restricted to numeric glyphs only — digits, separators,
@@ -17,22 +16,12 @@
 @font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/JetBrainsMono-Bold.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
 @font-face { font-family:'JBMonoNum'; font-style:normal; font-weight:800; font-display:swap; src:url('fonts/JetBrainsMono-ExtraBold.woff2') format('woff2'); unicode-range:U+0030-0039,U+002B,U+002C,U+002D,U+002E,U+002F,U+0025,U+003A,U+2212; }
 
-/* Themed shell surfaces — mirror lib/theme.js so <html>/<body>/native pickers
-   and the iOS theme-color band all track the active theme. */
-:root {
-  --k-bg: #ECE5D6; --k-card: #FDFBF6; --k-line: #E0D8C6; --k-accent: #C4623A;
-  --k-pad: 20px;
-}
-[data-theme="dark"] {
-  --k-bg: #16120F; --k-card: #221E1A; --k-line: #322B25; --k-accent: #D6794C;
-}
-
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   height: 100%; margin: 0;
   background: var(--k-bg);
-  font-family: 'JBMonoNum', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--c-font);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -49,7 +38,7 @@ body { overscroll-behavior-y: none; }
    App shell scaffolding
    ========================================================================= */
 .k-root { height: 100%; position: relative; overflow: hidden; background: var(--k-bg);
-  transition: background 220ms cubic-bezier(.2,.8,.2,1); }
+  transition: background var(--motion-fade) var(--c-ease); }
 .k-app { height: 100%; display: flex; flex-direction: column; background: var(--k-bg);
   color: var(--k-ink, #2A2521); overflow: hidden; position: relative; }
 .k-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
@@ -65,28 +54,11 @@ body { overscroll-behavior-y: none; }
    Motion — entrances, sheet, detail push, fades. Brief and soft.
    ========================================================================= */
 @keyframes kfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.fade-in { animation: kfade 360ms cubic-bezier(.2,.8,.2,1) both; }
+.fade-in { animation: kfade var(--motion-fade) var(--c-ease) both; }
 
-/* Details stay below the floating navigation and above the underlying page. */
+/* Detail motion is owned by the shared Motion shell. */
 .k-detail { position: absolute; inset: 0; z-index: 70; background: var(--k-bg);
-  display: flex; flex-direction: column;
-  animation: kdetailin 180ms cubic-bezier(.32,.72,0,1) both; will-change: transform; }
-.k-detail.out { animation: kdetailout 180ms ease both; }
-@keyframes kdetailout { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes kdetailin { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-/* bottom sheet — scrim fades, sheet slides up as one envelope */
-.k-overlay { position: absolute; inset: 0; z-index: 80; display: flex; align-items: flex-end; }
-.k-overlay::before { content: ''; position: absolute; inset: 0; background: rgba(20,15,10,.42);
-  animation: kscrim-in 180ms ease both; }
-.k-overlay.out::before { animation: kscrim-out 180ms ease both; }
-.k-overlay > .k-sheet { position: relative; z-index: 1; width: 100%; will-change: transform;
-  animation: ksheet-in 180ms cubic-bezier(.32,.72,0,1) both; }
-.k-overlay.out > .k-sheet { animation: ksheet-out 180ms cubic-bezier(.4,0,1,1) both; }
-@keyframes kscrim-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes kscrim-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes ksheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes ksheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+  display: flex; flex-direction: column; min-height: 0; }
 
 /* FAB pop-in */
 @keyframes kfab-in { from { opacity: 0; transform: translateY(10px) scale(.9); } to { opacity: 1; transform: none; } }

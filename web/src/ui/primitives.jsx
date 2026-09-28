@@ -23,17 +23,17 @@ export const sectionStyle = (th) => ({ padding: '17px 0 2px', marginTop: 19, bor
    ghost so the bucket and holding detail views render an identical action row. */
 export const actionPrimary = (th) => ({
   flex: 1, border: 'none', borderRadius: 14, padding: 14, background: th.accent, color: th.onAccent,
-  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+  fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
 })
 export const actionGhost = (th) => ({
   flex: 1, border: `1.5px solid ${th.line}`, borderRadius: 14, padding: 14, background: th.card, color: th.ink,
-  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+  fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
 })
 
 /* Small pill button used for the "Edit" affordance in every detail header. */
 export const chipBtn = (th) => ({
   border: 'none', background: th.card2, borderRadius: 999, padding: '8px 15px',
-  fontSize: 13, fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit',
+  fontSize: '0.875rem', fontWeight: 700, color: th.ink2, cursor: 'pointer', fontFamily: 'inherit',
 })
 
 /* ---------- Brand mark (the four-circle Keela glyph) ---------- */
@@ -72,7 +72,7 @@ export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, s
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke}
           strokeLinecap={pct > 0 ? 'round' : 'butt'} strokeDasharray={circ} strokeDashoffset={off}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 220ms cubic-bezier(.2,.8,.2,1)' }}
+          style={{ transition: 'stroke-dashoffset var(--motion-fade) var(--c-ease)' }}
         />
       </svg>
       {children != null && (
@@ -108,15 +108,15 @@ export function Sparkline({ values, w = 320, h = 48, color, fillOpacity = 0.1, s
 }
 
 /* ---------- Stacked bar (monthly flow / allocation / runway split) ---------- */
-export function StackedBar({ segs = [], height = 14, gap = 3, radius = 999, track, animate = true, style }) {
+export function StackedBar({ segs = [], height = 14, gap = 3, radius = 999, track, animate = false, style }) {
   return (
     <div style={{ display: 'flex', height, borderRadius: radius, overflow: 'hidden', gap,
       background: track || 'transparent', ...style }}>
       {segs.filter((s) => s.w > 0).map((s, i) => (
         <div key={i} style={{
           width: `${s.w}%`, background: s.color, borderRadius: radius, minWidth: 2,
-          transformOrigin: 'left center', transition: 'width 220ms cubic-bezier(.2,.8,.2,1)',
-          animation: animate && !prefersReduced() ? 'kgrowx 220ms cubic-bezier(.2,.8,.2,1) both' : undefined,
+          transformOrigin: 'left center', transition: 'width var(--motion-fade) var(--c-ease)',
+          animation: animate && !prefersReduced() ? 'kgrowx var(--motion-fade) var(--c-ease) both' : undefined,
         }} />
       ))}
     </div>
@@ -129,7 +129,7 @@ export function Progress({ pct = 0, color, track, height = 10, radius = 999, sty
   return (
     <div style={{ position: 'relative', height, borderRadius: radius, background: track || th.track, overflow: 'hidden', ...style }}>
       <div style={{ height: '100%', borderRadius: radius, width: `${Math.min(100, Math.max(0, pct))}%`,
-        background: color || th.accent, transition: 'width 220ms cubic-bezier(.2,.8,.2,1)' }} />
+        background: color || th.accent, transition: 'width var(--motion-fade) var(--c-ease)' }} />
     </div>
   )
 }
@@ -223,7 +223,7 @@ export function CatTile({ color, icon, size = 40, radius = 13, dashed = false, s
 /* ---------- Pill (status / pace badge) ---------- */
 export function Pill({ children, bg, fg, style }) {
   return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '5px 11px', borderRadius: 999,
+    <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '5px 11px', borderRadius: 999,
       background: bg, color: fg, whiteSpace: 'nowrap', ...style }}>{children}</span>
   )
 }
@@ -238,7 +238,7 @@ export function Segmented({ options = [], value, onChange, style }) {
         return (
           <button key={o.value} onClick={() => onChange(o.value)} style={{
             flex: 1, border: 'none', borderRadius: 999, padding: '9px 0', cursor: 'pointer',
-            fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
+            fontSize: '0.875rem', fontWeight: 700, fontFamily: 'inherit',
             background: on ? th.accent : 'transparent', color: on ? th.onAccent : th.ink2,
             transition: 'background .2s ease, color .2s ease',
           }}>{o.label}</button>
@@ -264,7 +264,7 @@ export function KeelaWhisper({ children, style }) {
         background: th.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Mark size={9} color="#fff" />
       </span>
-      <span style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: 'italic', color: th.ink2 }}>{children}</span>
+      <span style={{ fontSize: '0.875rem', lineHeight: 1.5, fontStyle: 'italic', color: th.ink2 }}>{children}</span>
     </div>
   )
 }
@@ -272,43 +272,12 @@ export function KeelaWhisper({ children, style }) {
 export { Sheet, Field, SheetSave, SheetDelete } from './sheets'
 
 /* ---------- Full-screen detail push (bucket / asset / note) ---------- */
-export function DetailShell({ onClose, right, children }) {
-  const th = useTheme(), ref = React.useRef(null), timer = React.useRef(null), exiting = React.useRef(false)
-  const [closing, setClosing] = React.useState(false)
-  const close = () => {
-    if (exiting.current) return
-    exiting.current = true
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { onClose(); return }
-    setClosing(true); timer.current = setTimeout(onClose, 180)
-  }
-  React.useEffect(() => () => clearTimeout(timer.current), [])
-  React.useLayoutEffect(() => {
-    const background = document.querySelector('.k-app'), opener = document.activeElement
-    if (background) background.inert = true
-    ref.current?.querySelector('button')?.focus({ preventScroll: true })
-    return () => { if (background) background.inert = false; if (opener?.isConnected) opener.focus?.({preventScroll:true}) }
-  }, [])
-  return (
-    <div ref={ref} className={`k-detail c-detail${closing ? ' out' : ''}`} style={{ background: th.bg }}>
-      {/* Flush at the top edge to match the list screens (.k-screen has 0 top padding). */}
-      <div style={{ flex: 'none', padding: '8px var(--c-gutter) 8px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
-          background: th.card2, borderRadius: 999, minHeight: 44, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
-          color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>
-          <span style={{ fontSize: 16, lineHeight: 0 }}>‹</span> Back
-        </button>
-        {right || null}
-      </div>
-      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: '6px var(--c-gutter) calc(100px + env(safe-area-inset-bottom))' }}>{children}</div>
-    </div>
-  )
-}
+export { DetailShell } from './detail'
 
 export function Empty({ children, style }) {
   const th = useTheme()
   return (
-    <div style={{ textAlign: 'center', padding: '50px 20px', color: th.ink3, fontSize: 13, lineHeight: 1.6, ...style }}>
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: th.ink3, fontSize: '0.875rem', lineHeight: 1.6, ...style }}>
       {children}
     </div>
   )
@@ -349,13 +318,13 @@ export function mdBlocks(text) {
 export function Markdown({ text }) {
   const th = useTheme()
   return (
-    <div style={{ fontSize: 14, color: th.ink2 }}>
+    <div style={{ fontSize: '0.875rem', color: th.ink2 }}>
       {mdBlocks(text).map((b, i) => {
         if (b.t === 'table') {
           const alignOf = (j) => b.align[j] || 'left'
           return (
             <div key={i} className="kscroll" style={{ overflowX: 'auto', margin: '14px 0' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5, lineHeight: 1.5 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.875rem', lineHeight: 1.5 }}>
                 {b.head && (
                   <thead>
                     <tr>{b.head.map((c, j) => (
@@ -374,7 +343,7 @@ export function Markdown({ text }) {
             </div>
           )
         }
-        if (b.t === 'h') return <div key={i} style={{ fontSize: 15, fontWeight: 800, color: th.ink, margin: '18px 0 8px' }}>{b.text}</div>
+        if (b.t === 'h') return <div key={i} style={{ fontSize: '1rem', fontWeight: 650, color: th.ink, margin: '18px 0 8px' }}>{b.text}</div>
         if (b.t === 'q') return <p key={i} style={{ borderLeft: `3px solid ${th.accent}`, paddingLeft: 13, fontStyle: 'italic', color: th.ink2, margin: '14px 0', lineHeight: 1.6 }}>{b.text}</p>
         if (b.t === 'li') return <div key={i} style={{ display: 'flex', gap: 9, margin: '6px 0', lineHeight: 1.6 }}><span style={{ color: th.accent }}>•</span><span>{b.text}</span></div>
         return <p key={i} style={{ margin: '9px 0', lineHeight: 1.65 }}>{b.text}</p>
@@ -385,13 +354,13 @@ export function Markdown({ text }) {
 
 /* ---------- Inline icon set (1.6–1.9px line) ---------- */
 const ico = (d, props = {}) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}><path d={d} /></svg>
 )
 export const Icons = {
-  plus: <span style={{ fontSize: 16, lineHeight: 0 }}>+</span>,
-  chevron: <span style={{ fontSize: 15, lineHeight: 0 }}>›</span>,
-  arrow: <span style={{ fontSize: 15, lineHeight: 0 }}>→</span>,
+  plus: <span style={{ fontSize: '1rem', lineHeight: 0 }}>+</span>,
+  chevron: <span style={{ fontSize: '1rem', lineHeight: 0 }}>›</span>,
+  arrow: <span style={{ fontSize: '1rem', lineHeight: 0 }}>→</span>,
   theme: (
     <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4">
       <circle cx="9" cy="9" r="6" /><path d="M9 3a6 6 0 0 0 0 12z" fill="currentColor" stroke="none" />
@@ -408,7 +377,7 @@ export const Icons = {
     </svg>
   ),
   star: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="12 2 15 9 22 9.3 17 14 18 21 12 17.5 6 21 7 14 2 9.3 9 9" />
     </svg>
   ),

@@ -76,6 +76,7 @@ export function ContributionPlan({ data, onClose, onEdit }) {
   );
   return (
     <Sheet title="Monthly contribution" onClose={onClose}>
+      {(close) => <>
       <div className="c-stat-row c-plan-summary">
         <div>
           Required / month
@@ -108,8 +109,7 @@ export function ContributionPlan({ data, onClose, onEdit }) {
                   <Action
                     small
                     onClick={() => {
-                      onClose();
-                      onEdit?.(g.id);
+                      close(() => onEdit?.(g.id));
                     }}
                   >
                     Set deadline
@@ -143,6 +143,7 @@ export function ContributionPlan({ data, onClose, onEdit }) {
           saved plan are shown separately.
         </p>
       </details>
+      </>}
     </Sheet>
   );
 }
@@ -365,7 +366,7 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
           width: "100%",
           justifyContent: "space-between",
           marginBottom: 12,
-          minHeight: 36,
+          minHeight: 44,
         }}
       >
         <h1 style={{ margin: 0 }}>{g.name}</h1>
@@ -487,6 +488,7 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
       </details>
       {switching && (
         <Sheet title="Switch bucket" onClose={() => setSwitching(false)}>
+          {(close) => <>
           {data.goals
             .filter((x) => !x.archived)
             .map((x) => (
@@ -494,8 +496,7 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
                 <button
                   className="c-row-main"
                   onClick={() => {
-                    onSwitch(x.id);
-                    setSwitching(false);
+                    close(() => onSwitch(x.id));
                   }}
                   aria-current={x.id === g.id ? "true" : undefined}
                 >
@@ -512,6 +513,7 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
                 </button>
               </div>
             ))}
+          </>}
         </Sheet>
       )}
     </DetailShell>
@@ -536,7 +538,7 @@ export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
   }[mode];
   const after = roundMoney(balance + (mode === "deposit" ? n : -n));
   return (
-    <Sheet title={label} onClose={onClose}>
+    <Sheet title={label} onClose={onClose} draft={{ goalId, amount, date, note }}>
       {(close) => (
         <>
           <SelectField
@@ -553,7 +555,7 @@ export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
                 </option>
               ))}
           </SelectField>
-          <AmountField value={amount} onChange={setAmount} />
+          <AmountField value={amount} onChange={setAmount} error={amount && n > 0 && !available ? `Only ${fmt(balance)} SAR is available.` : undefined} />
           <div className="c-form-preview">
             <span>
               Balance after{" "}
@@ -567,16 +569,6 @@ export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
               <Money value={Number.isFinite(after) ? after : balance} /> SAR
             </span>
           </div>
-          {amount && Number.isFinite(n) && n > 0 && !available && (
-            <p role="alert" className="c-sheet-error">
-              Only {fmt(balance)} SAR is available.
-            </p>
-          )}
-          {amount && !Number.isFinite(n) && (
-            <p role="alert" className="c-sheet-error">
-              Use a positive amount with up to two decimal places.
-            </p>
-          )}
           {mode !== "deposit" && (
             <p className="c-form-note">
               {mode === "spend"
@@ -592,6 +584,7 @@ export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
           />
           <SheetSave
             disabled={!valid}
+            disabledReason={!available && n > 0 ? `Enter no more than ${fmt(balance)} SAR.` : "Enter an amount and a valid date to continue."}
             onClick={async () => {
               await onSave(goalId, {
                 operationId: op,
@@ -631,11 +624,11 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
     (!date || /^\d{4}-(0[1-9]|1[0-2])$/.test(date)) &&
     (!plan || Number.isFinite(parseDecimal(plan)));
   return (
-    <Sheet title={isNew ? "New bucket" : "Bucket options"} onClose={onClose}>
+    <Sheet title={isNew ? "New bucket" : "Bucket options"} onClose={onClose} draft={{ name, target, date, status, color, note, pinned, plan }}>
       {(close) => (
         <>
           <Field
-            label="Name"
+            label="Name" required
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Next adventure"
@@ -643,7 +636,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
           />
           <div className="c-form-grid">
             <Field
-              label="Target · SAR"
+              label="Target · SAR" required min={0.01}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               inputMode="decimal"
@@ -684,7 +677,7 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                minHeight: 38,
+                minHeight: 44,
                 gap: 7,
               }}
             >
@@ -721,8 +714,10 @@ export function EditBucketSheet({ goal, onClose, onSave, onArchive }) {
           >
             {isNew ? "Create bucket" : "Save changes"}
           </SheetSave>
+          {!isNew && !goal.archived && balanceOf(goal) !== 0 && <p className="c-form-note">Withdraw or spend the remaining balance before archiving.</p>}
           {!isNew && (
             <SheetDelete
+              disabled={!goal.archived && balanceOf(goal) !== 0}
               confirmLabel={goal.archived ? "Restore bucket" : "Archive bucket"}
               onClick={async () => {
                 await onArchive(goal.id, !goal.archived);

@@ -145,12 +145,12 @@ export function TxSheet({ tx, txns, onClose, onSave, onDelete }) {
     [note, setNote] = React.useState(tx?.note || "");
   const valid = parseDecimal(amount) > 0 && name.trim() && validDate(date);
   return (
-    <Sheet title={tx ? "Edit expense" : "Add expense"} onClose={onClose}>
+    <Sheet title={tx ? "Edit expense" : "Add expense"} onClose={onClose} draft={{ amount, name, cat, date, note }}>
       {(close) => (
         <>
           <AmountField value={amount} onChange={setAmount} />
           <Field
-            label="Paid to / what for"
+            label="Paid to / what for" required
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Tamimi Markets"
@@ -212,12 +212,12 @@ export function BillSheet({ bill, onClose, onSave, onDelete }) {
     parseDecimal(amount) > 0 &&
     (!day || (/^\d{1,2}$/.test(day) && +day >= 1 && +day <= 31));
   return (
-    <Sheet title={bill ? "Edit recurring" : "Add recurring"} onClose={onClose}>
+    <Sheet title={bill ? "Edit recurring" : "Add recurring"} onClose={onClose} draft={{ name, amount, category, type, sub, day }}>
       {(close) => (
         <>
           <AmountField value={amount} onChange={setAmount} />
           <Field
-            label="Name"
+            label="Name" required
             placeholder="e.g. Netflix"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -232,7 +232,7 @@ export function BillSheet({ bill, onClose, onSave, onDelete }) {
               <option value="yearly">Yearly</option>
             </SelectField>
             <Field
-              label="Billing day · optional"
+              label="Billing day · optional" min={1} max={31}
               value={day}
               onChange={(e) => setDay(e.target.value)}
               inputMode="numeric"
@@ -291,17 +291,17 @@ export function UpcomingSheet({ item, onClose, onSave, onDelete }) {
     [amount, setAmount] = React.useState(item ? String(item.amount) : ""),
     [dueDate, setDate] = React.useState(item?.date || TODAY);
   return (
-    <Sheet title={item ? "Edit upcoming" : "Plan an expense"} onClose={onClose}>
+    <Sheet title={item ? "Edit upcoming" : "Plan an expense"} onClose={onClose} draft={{ name, amount, dueDate }}>
       {(close) => (
         <>
           <AmountField value={amount} onChange={setAmount} />
           <Field
-            label="Name"
+            label="Name" required
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <Field
-            label="Due date"
+            label="Due date" required
             type="date"
             value={dueDate}
             onChange={(e) => setDate(e.target.value)}
@@ -341,12 +341,12 @@ export function WishlistSheet({ item, onClose, onSave, onDelete }) {
     [name, setName] = React.useState(item?.name || ""),
     [amount, setAmount] = React.useState(item ? String(item.amount) : "");
   return (
-    <Sheet title={item ? "Edit wish" : "Add a wish"} onClose={onClose}>
+    <Sheet title={item ? "Edit wish" : "Add a wish"} onClose={onClose} draft={{ name, amount }}>
       {(close) => (
         <>
           <AmountField value={amount} onChange={setAmount} />
           <Field
-            label="Name"
+            label="Name" required
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -380,11 +380,11 @@ export function CategoryBudgetSheet({ cat, cap, onClose, onSave }) {
   const [amount, setAmount] = React.useState(cap ? String(cap) : "");
   const num = amount === "" ? 0 : parseDecimal(amount);
   return (
-    <Sheet title={`${cat} budget`} onClose={onClose}>
+    <Sheet title={`${cat} budget`} onClose={onClose} draft={{ amount }}>
       {(close) => (
         <>
           <AmountField
-            label="Per payday cycle"
+            label="Per payday cycle" optional
             value={amount}
             onChange={setAmount}
           />

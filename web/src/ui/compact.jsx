@@ -1,5 +1,6 @@
 import React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { MOTION, EASE } from "./motion";
 import { Mark, Ring, Icons, StackedBar } from "./primitives";
 import { useTheme } from "../lib/theme";
 import { fmt, fmtDay } from "../lib/format";
@@ -46,9 +47,9 @@ export function Page({ title, subtitle, action, nav, children }) {
   return (
     <motion.div
       className="k-screen c-page"
-      initial={reduced ? false : { opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduced ? 0 : 0.18 }}
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduced ? 0 : MOTION.fade, ease: EASE }}
     >
       <div className="c-brand">
         <Mark size={26} color={th.accent} />
@@ -171,7 +172,7 @@ export function Section({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: reduced ? 0 : 0.2 }}
+                transition={{ duration: reduced ? 0 : MOTION.fade, ease: EASE }}
                 style={{ overflow: "hidden" }}
               >
                 {children}
@@ -322,7 +323,7 @@ export function BucketRow({
       className="c-row c-bucket-row"
       layout={animateLayout && !reduced ? "position" : false}
       layoutId={animateLayout && !reduced ? `bucket-${g.id}` : undefined}
-      transition={{ duration: reduced ? 0 : 0.22 }}
+      transition={{ duration: reduced ? 0 : MOTION.panel, ease: EASE }}
     >
       <button
         className="c-row-main"
@@ -394,20 +395,29 @@ export function LineChart({
 }) {
   const th = useTheme(),
     ref = React.useRef(null),
-    [width, setWidth] = React.useState(280);
+    [width, setWidth] = React.useState(280),
+    [fontSize, setFontSize] = React.useState(12);
   React.useLayoutEffect(() => {
-    const observer = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    const observer = new ResizeObserver(([e]) => {
+      setWidth(e.contentRect.width);
+      setFontSize(parseFloat(getComputedStyle(document.documentElement).fontSize) * .75);
+    });
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
+  const axis = (n) =>
+    Math.abs(n) >= 1000
+      ? `${fmt(n / 1000, Math.abs(n) >= 10000 ? 0 : 1)}k`
+      : fmt(n, 0);
   const v = values.filter(Number.isFinite),
     W = Math.max(180, width),
-    left = 40,
-    right = W - 6,
-    top = 12,
-    bottom = 88;
-  const min = Math.min(0, ...v),
     max = Math.max(1, ...v) * 1.1,
+    H = 68 + fontSize * 4,
+    left = Math.max(40, axis(max).length * fontSize * .62 + 8),
+    right = W - 6,
+    top = fontSize,
+    bottom = H - fontSize * 7 / 3;
+  const min = Math.min(0, ...v),
     span = max - min || 1;
   const x = (i) =>
     v.length < 2
@@ -416,16 +426,13 @@ export function LineChart({
   const y = (n) => bottom - ((n - min) / span) * (bottom - top);
   const d = v.map((n, i) => `${i ? "L" : "M"}${x(i)} ${y(n)}`).join(" "),
     c = color || th.accent;
-  const axis = (n) =>
-    Math.abs(n) >= 1000
-      ? `${fmt(n / 1000, Math.abs(n) >= 10000 ? 0 : 1)}k`
-      : fmt(n, 0);
   return (
     <div ref={ref} className="c-chart">
       <svg
         width="100%"
         height="116"
-        viewBox={`0 0 ${W} 116`}
+        style={{ height: 'calc(68px + 3rem)' }}
+        viewBox={`0 0 ${W} ${H}`}
         role="img"
         aria-label={`${label}: ${v.map((n) => fmt(n)).join(", ")}`}
       >
@@ -453,10 +460,10 @@ export function LineChart({
             fill={c}
           />
         ))}
-        <text x={left} y="110">
+        <text x={left} y={H - fontSize / 2}>
           {labels?.[0] || ""}
         </text>
-        <text x={right} y="110" textAnchor="end">
+        <text x={right} y={H - fontSize / 2} textAnchor="end">
           {labels?.[1] || "Now"}
         </text>
       </svg>

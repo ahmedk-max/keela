@@ -342,12 +342,13 @@ export function PortfolioSheet({ portfolio, onClose, onSave, onDelete }) {
   return (
     <Sheet
       title={portfolio ? "Edit portfolio" : "New portfolio"}
+      draft={{ name, target, date, color, note }}
       onClose={onClose}
     >
       {(close) => (
         <>
           <Field
-            label="Name"
+            label="Name" required
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -395,7 +396,7 @@ export function PortfolioSheet({ portfolio, onClose, onSave, onDelete }) {
               <p className="c-form-note">
                 Deleting a portfolio keeps its holdings under Unsorted.
               </p>
-              <SheetDelete
+              <SheetDelete description="This portfolio will be removed. Its holdings and their history will remain under Unsorted."
                 onClick={async () => {
                   await onDelete(portfolio.id);
                   close();
@@ -443,11 +444,11 @@ export function HoldingSheet({
       : Number.isFinite(a) &&
         ((u === 0 && p === 0) || (u > 0 && p > 0 && a > 0)));
   return (
-    <Sheet title={holding ? "Edit holding" : "Add holding"} onClose={onClose}>
+    <Sheet title={holding ? "Edit holding" : "Add holding"} onClose={onClose} draft={{ name, kind, pf, category, color, note, units, price, cash }}>
       {(close) => (
         <>
           <Field
-            label="Name"
+            label="Name" required
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -480,18 +481,18 @@ export function HoldingSheet({
             <details className="c-form-options">
               <summary>Opening balance · optional</summary>
               {kind === "cash" ? (
-                <AmountField value={cash} onChange={setCash} />
+                <AmountField optional value={cash} onChange={setCash} />
               ) : (
                 <>
                   <div className="c-form-grid">
                     <Field
-                      label="Units"
+                      label="Units" precision={8}
                       inputMode="decimal"
                       value={units}
                       onChange={(e) => setUnits(e.target.value)}
                     />
                     <Field
-                      label="Price / unit · SAR"
+                      label="Price / unit · SAR" precision={8}
                       inputMode="decimal"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
@@ -585,6 +586,7 @@ export function ActivitySheet({ holding, mode, onClose, onSave }) {
   return (
     <Sheet
       title={`${mode[0].toUpperCase() + mode.slice(1)} · ${holding.name}`}
+      draft={{ amount, units, price, date, note }}
       onClose={onClose}
     >
       {(close) => (
@@ -593,13 +595,13 @@ export function ActivitySheet({ holding, mode, onClose, onSave }) {
             <>
               <div className="c-form-grid">
                 <Field
-                  label="Units"
+                  label="Units" precision={8}
                   inputMode="decimal"
                   value={units}
                   onChange={(e) => setUnits(e.target.value)}
                 />
                 <Field
-                  label="Price / unit · SAR"
+                  label="Price / unit · SAR" precision={8}
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -627,6 +629,7 @@ export function ActivitySheet({ holding, mode, onClose, onSave }) {
           />
           <SheetSave
             disabled={!valid}
+            disabledReason={message || (position ? "Enter units and price to continue." : "Enter an amount to continue.")}
             onClick={async () => {
               await onSave(holding.id, { ...entry, operationId: op });
               close();

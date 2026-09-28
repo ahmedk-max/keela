@@ -1,0 +1,29 @@
+/* Semantic palette: CSS surfaces and SVG charts use these same values. */
+:root, [data-theme="light"] {
+  --k-bg: #ece5d6; --k-card: #fdfbf6; --k-line: #ded5c4; --k-accent: #c4623a;
+  --c-ink: #2a2521; --c-muted: #6d6356; --c-paper: var(--k-card); --c-soft: #f2ebdc;
+  --c-line: var(--k-line); --c-accent: var(--k-accent); --c-action: #8b4220; --c-on-action: #fff;
+  --c-dark: #241f1a; --c-wash: #f3e2d5; --c-loss: #a73430; --c-gain: #3d7a4a;
+  --c-track: #e4dcc9; --c-tabbar: rgba(253,251,246,.96); --c-focus: #8b4220;
+  --c-amber: #c68a3c; --c-rose: #b16a88; --c-green: #5c9a6a; --c-blue: #5570b8; --c-flat: #beb6a3;
+  --c-on-dark: #f3eee3; --c-on-dark-muted: #d5cabc;
+  --c-shadow: 0 2px 3px #241f1a08, 0 15px 28px -20px #241f1a55;
+  --c-scrim: rgba(30,23,17,.38);
+  --c-control-line: #958979;
+}
+[data-theme="dark"] {
+  --k-bg: #16120f; --k-card: #221e1a; --k-line: #443b33; --k-accent: #d6794c;
+  --c-paper: var(--k-card); --c-line: var(--k-line); --c-accent: var(--k-accent);
+  --c-ink: #f4efe6; --c-muted: #b5ab9c; --c-soft: #2e2823;
+  --c-action: #d6794c; --c-on-action: #221e1a; --c-dark: #312a25; --c-wash: #3a271d;
+  --c-loss: #f18a7e; --c-gain: #79b985; --c-track: #44382e; --c-tabbar: rgba(34,30,26,.96); --c-focus: #e5a17a;
+  --c-amber: #e0a23a; --c-rose: #c2607f; --c-green: #5fa873; --c-blue: #6e86d8; --c-flat: #6b6356;
+  --c-on-dark-muted: #cdc2b1; --c-shadow: 0 2px 3px #0003, 0 15px 28px -20px #0008;
+  --c-scrim: rgba(0,0,0,.55);
+  --c-control-line: #857565;
+}
+:root {
+  --c-gutter: 20px; --k-pad: var(--c-gutter); --c-section-gap: 24px; --c-row-pad: 16px;
+  --c-radius: 12px; --c-panel-radius: 24px; --c-control: 44px;
+  --c-motion: var(--motion-fade); --c-font: 'JBMonoNum', 'Plus Jakarta Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

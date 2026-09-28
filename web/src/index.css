@@ -1,5 +1,9 @@
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/plus-jakarta-sans/wght-italic.css';
+@import './styles/tokens.css';
 @import './styles/keela.css';
 @import './styles/compact.css';
+@import './styles/controls.css';
 
 /* The PWA fills the real device — no simulated phone frame. Paint the themed
    canvas on every shell surface so no light strip peeks through the safe areas
