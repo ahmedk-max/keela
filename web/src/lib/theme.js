@@ -9,7 +9,7 @@ import { createContext, useContext } from 'react'
 export const LIGHT = {
   name: 'light',
   bg: '#ECE5D6', card: '#FDFBF6', card2: '#F2EBDC',
-  ink: '#2A2521', ink2: '#7A7163', ink3: '#A8A091',
+  ink: '#2A2521', ink2: '#6D6356', ink3: '#6D6356',
   line: '#E0D8C6', track: '#E4DCC9', darkcard: '#241F1A',
   tabbar: 'rgba(253,251,246,.96)',
   accent: '#C4623A', accentPress: '#8B4220', accentSoft: '#F3E2D5',
@@ -23,7 +23,7 @@ export const LIGHT = {
 export const DARK = {
   name: 'dark',
   bg: '#16120F', card: '#221E1A', card2: '#2E2823',
-  ink: '#F4EFE6', ink2: '#B5AB9C', ink3: '#837A6D',
+  ink: '#F4EFE6', ink2: '#B5AB9C', ink3: '#B5AB9C',
   line: '#322B25', track: '#392F28', darkcard: '#312A25',
   tabbar: 'rgba(40,34,30,.94)',
   accent: '#D6794C', accentPress: '#B5673E', accentSoft: '#3A271D',

@@ -4,7 +4,6 @@
 // Doubly gated: `import.meta.env.DEV` is false in production builds (so this whole
 // module's effect is dead-code-eliminated), AND it requires the `?demo` URL flag.
 // It is never reachable in the deployed PWA.
-import { buildData } from './useKeelaData'
 
 export const DEMO =
   import.meta.env.DEV &&
@@ -23,7 +22,7 @@ const dayISO = (back: number) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-const raw = {
+export const demoRaw = {
   profile: {
     salary: 25000, payday: 27, split: { save: 70, live: 30 },
     pactStart: '2024-10', pactEnd: '2027-10', currency: 'SAR',
@@ -147,7 +146,3 @@ const raw = {
     { path: 'assets/a4/entries/e12', type: 'deposit', amount: 20000, date: dayISO(60), note: 'set aside' },
   ],
 }
-
-// Cast to the adapter's return type: this is only ever read when DEMO is true
-// (see useKeelaData), so consumers can treat it as non-null.
-export const demoData = (DEMO ? buildData(raw) : null) as ReturnType<typeof buildData>

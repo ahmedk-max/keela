@@ -28,8 +28,8 @@ export default defineConfig(function (_a) {
                     name: 'Keela',
                     short_name: 'Keela',
                     description: 'The cloud home of Keela — the 70/30 pact.',
-                    theme_color: '#FAF9F5',
-                    background_color: '#FAF9F5',
+                    theme_color: '#ECE5D6',
+                    background_color: '#ECE5D6',
                     display: 'standalone',
                     orientation: 'portrait',
                     icons: [

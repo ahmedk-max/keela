@@ -10,7 +10,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, collectionGroup, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { cap, catCode, fmt, NOW_MONTH } from '../lib/format'
-import { DEMO, demoData } from './demo'
+import { DEMO, demoRaw } from './demo'
+import { roundMoney } from '../lib/money.mjs'
 
 // Warm fallback palette for goals / holdings / portfolios with no stored colour
 // (mirrors lib/theme.js SWATCHES).
@@ -53,6 +54,7 @@ export function buildData(raw) {
     allocated: g.allocated || 0,
     spent: g.spent || 0,
     status: g.status || 'active',
+    archived: !!g.archived, pinned: !!g.pinned, monthlyPlan: g.monthlyPlan ?? null,
     color: g.color || '#C4623A',
     code: codeFromName(g.name),
     targetDate: (g.targetDate || '').slice(0, 7) || NOW_MONTH,
@@ -60,7 +62,7 @@ export function buildData(raw) {
     entries: (entriesByParent['goals/' + g.id] || [])
       .slice()
       .sort(byDateDesc)
-      .map((e) => ({ type: e.type, amount: e.amount, date: (e.date || '').slice(0, 10), note: e.note || '' })),
+      .map((e) => ({ id: e.path?.split('/').at(-1), type: e.type, amount: e.amount, date: (e.date || '').slice(0, 10), note: e.note || '' })),
   }))
 
   // Holdings (the `assets` collection). Cost-basis only: `allocated` is the SAR
@@ -90,7 +92,7 @@ export function buildData(raw) {
         .slice()
         .sort(byDateDesc)
         .map((e) => ({
-          type: e.type,
+          type: e.type, costRemoved: e.costRemoved ?? null,
           units: e.units != null ? e.units : null,
           price: e.price != null ? e.price : null,
           // new buy/sell/deposit/withdraw use `amount`; fall back to legacy fields
@@ -182,10 +184,10 @@ export function buildData(raw) {
   const cycleEnd = isod(cycleEndD)
 
   const cycleTxns = txns.filter((t) => (t.date || '') >= cycleStart && (t.date || '') < cycleEnd)
-  const variableSpent = Math.round(cycleTxns.reduce((s, t) => s + t.amount, 0))
+  const variableSpent = roundMoney(cycleTxns.reduce((s, t) => s + t.amount, 0))
   const monthlyBills = bills.filter((b) => b.type === 'monthly')
-  const fixed = Math.round(monthlyBills.filter((b) => !b.sub).reduce((s, b) => s + b.amount, 0))
-  const subs = Math.round(monthlyBills.filter((b) => b.sub).reduce((s, b) => s + b.amount, 0))
+  const fixed = roundMoney(monthlyBills.filter((b) => !b.sub).reduce((s, b) => s + b.amount, 0))
+  const subs = roundMoney(monthlyBills.filter((b) => b.sub).reduce((s, b) => s + b.amount, 0))
   const monthlyIncome = income.filter((s) => s.recurring).reduce((s, x) => s + x.amount, 0)
   const saveTarget = p.split?.save ?? 70
   // Savings is capped at the pact target (saveTarget%). Unspent variable early in the
@@ -208,7 +210,7 @@ export function buildData(raw) {
   }
 
   let snapshots = (raw.snapshots || [])
-    .map((s) => ({ m: s.monthKey, netWorth: s.netWorth, income: s.totalIncome, expenses: s.totalExpenses, savingsRate: s.savingsRate }))
+    .map((s) => ({ m: s.monthKey, netWorth: s.netWorth, income: s.totalIncome, expenses: s.totalExpenses, savingsRate: s.savingsRate, savingsBalance: s.savingsBalance, assetBasis: s.assetBasis }))
     .sort((a, b) => a.m.localeCompare(b.m))
   if (!snapshots.length) {
     snapshots = [{ m: NOW_MONTH, netWorth, income: monthlyIncome, expenses: thisMonth.spending, savingsRate: thisMonth.kept }]
@@ -258,41 +260,41 @@ const EMPTY = {
 }
 
 export function useKeelaData(enabled = true) {
-  const [raw, setRaw] = useState(EMPTY)
-
+  const [raw, setRaw] = useState(() => DEMO ? { ...demoRaw } : EMPTY)
+  const [pending, setPending] = useState(true)
+  const [error, setError] = useState(null)
+  const [offline, setOffline] = useState(!navigator.onLine)
+  const [retryKey, setRetryKey] = useState(0)
   useEffect(() => {
-    if (!enabled || DEMO) return
-    const merge = (patch) => setRaw((r) => ({ ...r, ...patch }))
-    const noop = () => {}
-    const subCol = (path, key = path) =>
-      onSnapshot(collection(db, path), (s) =>
-        merge({ [key]: s.docs.map((d) => ({ id: d.id, ...d.data() })) }), noop,
-      )
-
+    const update = () => setOffline(!navigator.onLine)
+    window.addEventListener('online', update); window.addEventListener('offline', update)
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
+  }, [])
+  useEffect(() => {
+    if (DEMO) {
+      const update = () => setRaw({ ...demoRaw })
+      window.addEventListener('keela:demo-change', update)
+      return () => window.removeEventListener('keela:demo-change', update)
+    }
+    if (!enabled) { setRaw(EMPTY); return }
+    let active = true
+    const waiting = new Set(['profile', 'transactions', 'bills', 'income', 'goals', 'assets', 'portfolios', 'wishlist', 'upcoming', 'snapshots', 'meetings', 'memory', 'entries'])
+    setPending(true); setError(null)
+    const finish = key => { waiting.delete(key); if (!waiting.size && active) setPending(false) }
+    const merge = (key, value) => { if (active) { setRaw(r => ({ ...r, [key]: value })); finish(key) } }
+    const fail = key => () => { if (active) { setError('Some saved data could not be loaded. Reconnect or retry before making changes.'); finish(key) } }
+    const subCol = (path, key = path) => onSnapshot(collection(db, path), s => merge(key, s.docs.map(d => ({ id: d.id, ...d.data() }))), fail(key))
     const unsubs = [
-      onSnapshot(doc(db, 'profile', 'main'), (s) =>
-        merge({ profile: s.exists() ? { id: s.id, ...s.data() } : null }), noop,
-      ),
-      subCol('transactions'),
-      subCol('bills'),
-      subCol('income'),
-      subCol('goals'),
-      subCol('assets'),
-      subCol('portfolios'),
-      subCol('wishlist'),
-      subCol('upcomingExpenses', 'upcoming'),
-      subCol('snapshots'),
-      subCol('meetings'),
-      subCol('memory'),
-      onSnapshot(collectionGroup(db, 'entries'), (s) =>
-        merge({ entries: s.docs.map((d) => ({ path: d.ref.path, ...d.data() })) }), noop,
-      ),
+      onSnapshot(doc(db, 'profile', 'main'), s => {
+        if (!s.exists() && active) setError('Your profile is unavailable. Reconnect and retry.')
+        merge('profile', s.exists() ? { id: s.id, ...s.data() } : null)
+      }, fail('profile')),
+      subCol('transactions'), subCol('bills'), subCol('income'), subCol('goals'), subCol('assets'), subCol('portfolios'),
+      subCol('wishlist'), subCol('upcomingExpenses', 'upcoming'), subCol('snapshots'), subCol('meetings'), subCol('memory'),
+      onSnapshot(collectionGroup(db, 'entries'), s => merge('entries', s.docs.map(d => ({ path: d.ref.path, ...d.data() }))), fail('entries')),
     ]
-    return () => unsubs.forEach((u) => u())
-  }, [enabled])
-
+    return () => { active = false; unsubs.forEach(u => u()) }
+  }, [enabled, retryKey])
   const data = useMemo(() => buildData(raw), [raw])
-  if (DEMO) return { data: demoData, loading: false }
-  const loading = enabled ? raw.profile === null : false
-  return { data, loading }
+  return { data, loading: !DEMO && enabled && pending && !error, error, offline, retry: () => setRetryKey(k => k + 1) }
 }

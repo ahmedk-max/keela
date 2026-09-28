@@ -5,7 +5,7 @@ export const MONTH_ABBR = [
   'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
 ]
 
-export function fmt(n: number, dp = 0): string {
+export function fmt(n: number, dp = Number.isInteger(n) ? 0 : 2): string {
   const neg = n < 0
   n = Math.abs(n)
   const s = n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })

@@ -17,7 +17,7 @@ export const prefersReduced = () =>
    Every screen's horizontal gutter and bordered "section divider" come from here so
    the vertical cadence and edge alignment stay identical across tabs. */
 export const GUTTER = 20
-export const sectionStyle = (th) => ({ padding: '22px 0 2px', marginTop: 22, borderTop: `1px solid ${th.line}` })
+export const sectionStyle = (th) => ({ padding: '17px 0 2px', marginTop: 19, borderTop: `1px solid ${th.line}` })
 
 /* Detail-view action buttons (Deposit/Withdraw, Buy/Sell …) — paired primary +
    ghost so the bucket and holding detail views render an identical action row. */
@@ -51,7 +51,7 @@ export function Mark({ size = 30, color = 'currentColor', style }) {
 /* ---------- Progress ring with mount sweep ----------
    Draws an empty track + a coloured arc that sweeps up from 0 on mount
    (stroke-dashoffset transition). `children` render centred in the ring. */
-export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, sweep = true, style }) {
+export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, sweep = false, style }) {
   const th = useTheme()
   const c = color || th.accent
   const tk = track || th.track
@@ -70,7 +70,7 @@ export function Ring({ pct = 0, size = 64, stroke = 6, color, track, children, s
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={tk} strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke}
-          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off}
+          strokeLinecap={pct > 0 ? 'round' : 'butt'} strokeDasharray={circ} strokeDashoffset={off}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: 'stroke-dashoffset 760ms cubic-bezier(.2,.8,.2,1)' }}
         />
@@ -249,24 +249,8 @@ export function Segmented({ options = [], value, onChange, style }) {
 }
 
 /* ---------- Count-up number (animates on mount, respects reduce-motion) ---------- */
-export function CountUp({ value = 0, dp = 0, duration = 900, className, style }) {
-  const [n, setN] = React.useState(() => (prefersReduced() ? value : 0))
-  const from = React.useRef(0)
-  React.useEffect(() => {
-    if (prefersReduced()) { setN(value); return }
-    const start = from.current, delta = value - start, t0 = performance.now()
-    let raf
-    const tick = (t) => {
-      const p = Math.min(1, (t - t0) / duration)
-      const e = 1 - Math.pow(1 - p, 3) // easeOutCubic
-      setN(start + delta * e)
-      if (p < 1) raf = requestAnimationFrame(tick)
-      else from.current = value
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [value, duration])
-  return <span className={className} style={style}>{fmt(n, dp)}</span>
+export function CountUp({ value = 0, dp, className, style }) {
+  return <span className={className} style={style}>{fmt(value, dp)}</span>
 }
 
 /* ---------- Keela whisper — a quiet one-line nudge in her voice ---------- */
@@ -285,87 +269,38 @@ export function KeelaWhisper({ children, style }) {
   )
 }
 
-/* ---------- Bottom sheet — rounded, grab handle, animated exit ----------
-   Function-as-child: children receive a `close` that plays the exit animation
-   then calls onClose. Use it after a save so the sheet slides away. */
-export function Sheet({ title, onClose, children, cancelLabel = 'Cancel' }) {
-  const th = useTheme()
-  const [closing, setClosing] = React.useState(false)
-  const close = React.useCallback(() => {
-    if (prefersReduced()) { onClose && onClose(); return }
-    setClosing(true)
-    setTimeout(() => onClose && onClose(), 240)
-  }, [onClose])
-  return (
-    <div className={'k-overlay' + (closing ? ' out' : '')} onClick={close}>
-      <div className="k-sheet kscroll" onClick={(e) => e.stopPropagation()} style={{
-        maxHeight: '88%', overflowY: 'auto', overflowX: 'hidden', background: th.card,
-        borderRadius: '28px 28px 0 0', padding: '8px 20px calc(18px + env(safe-area-inset-bottom))',
-        boxShadow: '0 -10px 40px rgba(0,0,0,.2)',
-      }}>
-        <div style={{ width: 34, height: 4, borderRadius: 3, background: th.line, margin: '5px auto 10px' }} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: th.ink }}>{title}</span>
-          <button onClick={close} style={{ border: 'none', background: 'none', fontSize: 13, fontWeight: 700,
-            color: th.ink3, cursor: 'pointer', fontFamily: 'inherit' }}>{cancelLabel}</button>
-        </div>
-        {typeof children === 'function' ? children(close) : children}
-      </div>
-    </div>
-  )
-}
-
-/* form input shared by the sheets. 16px minimum is deliberate: iOS Safari/PWA
-   auto-zooms (and then pans, knocking content off-screen and making the scrim
-   un-tappable) when a focused input is below 16px. Never drop below 16 here. */
-export function Field({ value, onChange, placeholder, type, inputMode, style, big }) {
-  const th = useTheme()
-  return (
-    <input
-      value={value} onChange={onChange} placeholder={placeholder} type={type} inputMode={inputMode}
-      style={{
-        display: 'block', width: '100%', maxWidth: '100%', border: 'none', background: th.card2, borderRadius: 12,
-        padding: '11px 13px', marginTop: 10, fontSize: big ? 26 : 16, fontWeight: big ? 800 : 400,
-        color: th.ink, outline: 'none', fontFamily: 'inherit', ...style,
-      }}
-    />
-  )
-}
-
-/* primary action button used across sheets */
-export function SheetSave({ children, onClick, style }) {
-  const th = useTheme()
-  return (
-    <button onClick={onClick} style={{ width: '100%', border: 'none', borderRadius: 14, padding: 13,
-      background: th.accent, color: th.onAccent, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-      marginTop: 14, fontFamily: 'inherit', ...style }}>{children}</button>
-  )
-}
-export function SheetDelete({ children = 'Delete', onClick }) {
-  const th = useTheme()
-  return (
-    <button onClick={onClick} style={{ width: '100%', border: 'none', borderRadius: 12, padding: 9,
-      background: 'none', color: th.loss, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-      marginTop: 6, fontFamily: 'inherit' }}>{children}</button>
-  )
-}
+export { Sheet, Field, SheetSave, SheetDelete } from './sheets'
 
 /* ---------- Full-screen detail push (bucket / asset / note) ---------- */
 export function DetailShell({ onClose, right, children }) {
-  const th = useTheme()
+  const th = useTheme(), ref = React.useRef(null), timer = React.useRef(null), exiting = React.useRef(false)
+  const [closing, setClosing] = React.useState(false)
+  const close = () => {
+    if (exiting.current) return
+    exiting.current = true
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { onClose(); return }
+    setClosing(true); timer.current = setTimeout(onClose, 180)
+  }
+  React.useEffect(() => () => clearTimeout(timer.current), [])
+  React.useLayoutEffect(() => {
+    const background = document.querySelector('.k-app'), opener = document.activeElement
+    if (background) background.inert = true
+    ref.current?.querySelector('button')?.focus({ preventScroll: true })
+    return () => { if (background) background.inert = false; if (opener?.isConnected) opener.focus?.({preventScroll:true}) }
+  }, [])
   return (
-    <div className="k-detail" style={{ background: th.bg }}>
+    <div ref={ref} className={`k-detail c-detail${closing ? ' out' : ''}`} style={{ background: th.bg }}>
       {/* Flush at the top edge to match the list screens (.k-screen has 0 top padding). */}
-      <div style={{ flex: 'none', padding: `0 ${GUTTER}px 12px`,
+      <div style={{ flex: 'none', padding: `8px ${GUTTER}px 8px`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
+        <button onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none',
           background: th.card2, borderRadius: 999, padding: '8px 15px 8px 11px', fontSize: 13, fontWeight: 700,
           color: th.ink2, cursor: 'pointer', fontFamily: 'inherit' }}>
           <span style={{ fontSize: 16, lineHeight: 0 }}>‹</span> Back
         </button>
         {right || null}
       </div>
-      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: `6px ${GUTTER}px calc(40px + env(safe-area-inset-bottom))` }}>{children}</div>
+      <div className="kscroll" style={{ flex: 1, overflowY: 'auto', padding: `6px ${GUTTER}px calc(94px + env(safe-area-inset-bottom))` }}>{children}</div>
     </div>
   )
 }

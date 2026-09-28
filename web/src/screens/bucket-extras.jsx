@@ -1,3 +1,4 @@
+import { roundMoney } from '../lib/money.mjs'
 /* Keela — Buckets analytics: portfolio-level stats + savings composition.
    Pure helpers shared by the list, the ring cards and the detail page. The
    balance-over-time chart is now an inline SVG built in the detail view itself
@@ -55,9 +56,9 @@ export function balanceSeries(g) {
   const evs = [...(g.entries || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
   const delta = (e) => (e.type === 'deposit' ? e.amount : -e.amount)
   const net = evs.reduce((s, e) => s + delta(e), 0)
-  const opening = Math.max(0, Math.round(balance - net))
+  const opening = roundMoney(balance - net)
   const vals = [opening]
   let run = opening
-  for (const e of evs) { run += delta(e); vals.push(Math.max(0, Math.round(run))) }
-  return { vals, opening, now: Math.round(balance) }
+  for (const e of evs) { run += delta(e); vals.push(roundMoney(run)) }
+  return { vals, opening, now: roundMoney(balance) }
 }

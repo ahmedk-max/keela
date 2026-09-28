@@ -1,3 +1,4 @@
+import { roundMoney } from '../lib/money.mjs'
 /* Keela — Assets helpers ("Warm" reskin). Cost-basis only (SAR, no live prices /
    no P/L): a holding's `invested` equals its `current` balance; "gain" is always
    flat. Portfolios carry a savings-style goal. These pure helpers feed the
@@ -30,9 +31,9 @@ export function entryDelta(e) {
 export function holdingSeries(h) {
   const evs = [...(h.entries || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
   const net = evs.reduce((s, e) => s + entryDelta(e), 0)
-  const opening = Math.max(0, Math.round((h.costBasis || 0) - net))
+  const opening = roundMoney((h.costBasis || 0) - net)
   const vals = [opening]
   let run = opening
-  for (const e of evs) { run += entryDelta(e); vals.push(Math.max(0, Math.round(run))) }
+  for (const e of evs) { run += entryDelta(e); vals.push(roundMoney(run)) }
   return vals
 }
