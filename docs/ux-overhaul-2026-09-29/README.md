@@ -23,7 +23,7 @@ The financial adapters, write functions, calculation modules, Firestore rules, a
 - [x] All **17 existing financial tests** pass unchanged.
 - [x] **20 new UI tests** pass: focus trapping/restoration, draft preservation and reversion, custom controls, discard/destructive confirmations, whole-number and currency validation, failed-save retry, duplicate submission, committed-save notifications, offline recovery, interrupted closing/navigation, initial bucket funding, parent detail restoration, private memory, and visible-viewport events/cleanup.
 - [x] TypeScript and the production build pass (`npm run build`).
-- [x] Lockfile installation dry run passes. The existing Vite 5 app toolchain coexists with Vitest's newer nested Vite; npm reports optional-peer warnings, but the test and build commands pass.
+- [x] A clean `npm ci` installation passes on Node 22. The first publication attempt exposed a missing optional esbuild dependency in the lockfile and a Node 20/22 mismatch. The lockfile was regenerated with standard dependency resolution and the existing workflow now uses Node 22. The Vite 5 app toolchain coexists with Vitest's newer nested Vite and still reports an optional-peer warning.
 - [x] **228 normal layout cases:** 38 real screen/form/state scenes × 320, 390, and 430 px × light/dark. Checked rendering, horizontal overflow, sheet/footer containment, and control targets.
 - [x] **76 stress cases:** every scene in both themes at 320 px, with 200% text, expanded options, long bucket names, and seven-digit amounts.
 - [x] **36 empty-state cases:** Home, Spending, Buckets, Assets, notes, and memory across all widths and themes.
@@ -52,7 +52,7 @@ Evidence: [layout-results.json](layout-results.json), [contrast-results.json](co
 
 ## Reproduce
 
-From `web/`:
+With Node 22.14 or later, from `web/`:
 
 ```sh
 npm ci
