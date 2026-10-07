@@ -7,16 +7,18 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { DEMO, demoRaw } from "./demo";
-import { stageMovement } from "../lib/ledger.mjs";
+import { stageMovement, stageBucketEntryChange } from "../lib/ledger.mjs";
 
 export const operationId = () => doc(collection(db, "_ids")).id;
 const keyFor = (key: string) => (key === "upcomingExpenses" ? "upcoming" : key);
 let failDemo = DEMO && new URLSearchParams(location.search).has("failSave");
 type Change = { path: string; data?: any; remove?: boolean };
+const demoReceipts = new Map<string, any>();
 function demoRead(path: string): any {
   const [col, id, child, eid] = path.split("/");
   const raw = demoRaw as any;
   if (child === "entries") return raw.entries.find((x: any) => x.path === path);
+  if (child === "entryChanges") return demoReceipts.get(path);
   if (col === "profile") return raw.profile;
   return (raw[keyFor(col)] || []).find((x: any) => String(x.id) === id);
 }
@@ -24,9 +26,12 @@ function demoCommit(changes: Change[]) {
   const raw = demoRaw as any;
   for (const { path, data, remove } of changes) {
     const [col, id, child] = path.split("/");
-    if (child === "entries") {
+    if (child === "entryChanges") {
+      if (remove) demoReceipts.delete(path);
+      else demoReceipts.set(path, data);
+    } else if (child === "entries") {
       raw.entries = raw.entries.filter((x: any) => x.path !== path);
-      if (!remove) raw.entries.push({ path, ...data });
+      if (!remove) raw.entries.push({ ...data, path });
     } else if (col === "profile") raw.profile = { ...raw.profile, ...data };
     else {
       const key = keyFor(col),
@@ -126,6 +131,32 @@ export async function recordMovement(
       derive,
     ),
   );
+}
+
+export async function changeBucketEntry(sourceId: string, entry: any, input: any, destinationId: string, id: string, originalAction: any = null) {
+  await ensureWritable();
+  if (DEMO) {
+    const changes: Change[] = [];
+    await stageBucketEntryChange({
+      read: async (path: string) => demoRead(path),
+      update: (path: string, data: any) => changes.push({ path, data }),
+      create: (path: string, data: any) => changes.push({ path, data }),
+      remove: (path: string) => changes.push({ path, remove: true }),
+    }, sourceId, entry.id, id, entry, input, destinationId, originalAction);
+    demoCommit(changes);
+    return;
+  }
+  await runTransaction(db, async (tx) => stageBucketEntryChange({
+    read: async (path: string) => {
+      const snap = await tx.get(doc(db, path));
+      return snap.exists() ? snap.data() : null;
+    },
+    update: (path: string, data: any) => tx.update(doc(db, path), data),
+    create: (path: string, data: any) => tx.set(doc(db, path), {
+      ...data, updatedAt: serverTimestamp(),
+    }),
+    remove: (path: string) => tx.delete(doc(db, path)),
+  }, sourceId, entry.id, id, entry, input, destinationId, originalAction));
 }
 
 export async function archiveGoal(id: string, archived: boolean) {

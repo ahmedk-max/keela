@@ -64,7 +64,7 @@ export function buildData(raw, today = new Date()) {
     entries: (entriesByParent['goals/' + g.id] || [])
       .slice()
       .sort(byDateDesc)
-      .map((e) => ({ id: e.path?.split('/').at(-1), type: e.type, amount: e.amount, date: (e.date || '').slice(0, 10), note: e.note || '' })),
+      .map((e) => ({ id: e.path?.split('/').at(-1), type: e.type, amount: e.amount, date: (e.date || '').slice(0, 10), note: e.note || '', balanceField: e.balanceField || null, revision: e.revision || 0 })),
   }))
 
   // Holdings (the `assets` collection). Cost-basis only: `allocated` is the SAR

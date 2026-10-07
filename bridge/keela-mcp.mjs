@@ -191,7 +191,7 @@ server.registerTool(
     const ref = db.doc(`goals/${goal_id}`)
     if (!(await ref.get()).exists) return text(`No goal with id ${goal_id}. Use list_goals.`)
     await ref.update({ spent: FieldValue.increment(amount) })
-    await ref.collection('entries').add({ type: 'withdrawal', amount, note: note || '', date: isoDate() })
+    await ref.collection('entries').add({ type: 'withdrawal', balanceField: 'spent', amount, note: note || '', date: isoDate() })
     return text(`Withdrew ${amount} SAR from ${goal_id}.`)
   },
 )

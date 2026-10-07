@@ -139,7 +139,7 @@ export function registerTools(server, fs) {
   }, async ({ goal_id, amount, note }) => {
     if (!(await fs.getDoc(`goals/${goal_id}`))) return text(`No goal with id ${goal_id}. Use list_goals.`)
     await fs.increment(`goals/${goal_id}`, 'spent', amount)
-    await fs.addSub(`goals/${goal_id}`, 'entries', { type: 'withdrawal', amount, note: note || '', date: isoDate() })
+    await fs.addSub(`goals/${goal_id}`, 'entries', { type: 'withdrawal', balanceField: 'spent', amount, note: note || '', date: isoDate() })
     return text(`Withdrew ${amount} SAR from ${goal_id}.`)
   })
 

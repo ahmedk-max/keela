@@ -72,6 +72,8 @@ export interface GoalEntry {
   amount: number
   note?: string
   date: string
+  balanceField?: 'allocated' | 'spent'
+  revision?: number
 }
 
 export interface Asset {

@@ -5,6 +5,15 @@
 .c-icon-button { border-radius: var(--c-radius); }
 .c-danger { background: var(--c-loss); color: var(--c-paper); border-color: transparent; }
 [data-theme="dark"] .c-danger { color: #221e1a; }
+.c-swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--c-line); }
+.c-swipe-front { position: relative; background: var(--k-bg); border-bottom: 0; touch-action: pan-y pinch-zoom; transition: transform 180ms ease; }
+.c-swipe-front .c-row-main { min-height: 48px; }
+.c-swipe-front .c-icon-button { flex: 0 0 44px; }
+.c-swipe-actions { position: absolute; inset: 0 0 0 auto; width: 152px; display: flex; gap: 4px; padding: 8px 0 8px 4px; }
+.c-swipe-actions button { flex: 1; min-width: 0; min-height: 44px; border: 0; border-radius: 10px; background: var(--c-wash); color: var(--c-action); font: inherit; font-size: .8rem; font-weight: 600; }
+.c-swipe-actions .c-danger { background: var(--c-loss); color: var(--c-paper); }
+[data-theme="dark"] .c-swipe-actions .c-danger { color: #221e1a; }
+@media (prefers-reduced-motion: reduce) { .c-swipe-front { transition: none; } }
 .c-field { display: block; min-width: 0; margin-top: 16px; }
 .c-field > label, .c-field > span:first-child { display: block; font-size: 0.75rem; font-weight: 600; color: var(--c-ink); margin-bottom: 6px; }
 .c-required { color: var(--c-muted); font-weight: 400; }
