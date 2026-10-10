@@ -13,6 +13,7 @@ import {
   parseDecimal,
   validDate,
   roundMoney,
+  bucketEntryChange,
 } from "../lib/money.mjs";
 import { DetailShell, Empty } from "../ui/primitives";
 import {
@@ -25,7 +26,9 @@ import {
   SheetDelete,
   useOperationId,
   todayISO,
+  Confirmation,
 } from "../ui/sheets";
+import { SwipeRow } from "../ui/SwipeRow";
 import {
   Page,
   Hero,
@@ -331,9 +334,10 @@ export function Buckets({ data, nav, sub, setSub }) {
     </Page>
   );
 }
-export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
+export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch, onEntry = (id, entry, action) => {} }) {
   const th = useTheme(),
     [switching, setSwitching] = React.useState(false),
+    [openEntry, setOpenEntry] = React.useState(null),
     phase = bucketPhase(g),
     balance = balanceOf(g),
     inuse = phase === "inuse";
@@ -451,25 +455,29 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
         </Section>
       )}
       <Section title="Activity" detail="SAR">
+        {!!g.entries.length && !g.archived && <p className="c-form-note">Swipe left for actions, or tap an entry to edit.</p>}
         {g.entries.length ? (
           g.entries.map((e, i) => {
             const meta = entryMeta(e.type, th);
             return (
-              <div className="c-row" key={e.id || i}>
+              <SwipeRow key={`${g.id}:${e.id || i}`} label={`${e.note || meta.label}, ${fmt(e.amount)} SAR, ${fmtDate(e.date)}`}
+                open={openEntry === `${g.id}:${e.id}`}
+                onOpenChange={(open) => setOpenEntry(open ? `${g.id}:${e.id}` : null)}
+                onEdit={() => onEntry(g.id, e, "edit")} onDelete={() => onEntry(g.id, e, "delete")}>
                 <span className="c-tile" style={{ color: meta.color }}>
                   {meta.icon}
                 </span>
-                <div className="c-row-content">
-                  <div className="c-row-title">
+                <span className="c-row-content">
+                  <span className="c-row-title">
                     <span>{meta.label}</span>
                     <Money value={(e.type === "deposit" ? 1 : -1) * e.amount} />
-                  </div>
-                  <div className="c-meta">
+                  </span>
+                  <span className="c-meta">
                     <span>{e.note || "Recorded entry"}</span>
                     <span>{fmtDate(e.date)}</span>
-                  </div>
-                </div>
-              </div>
+                  </span>
+                </span>
+              </SwipeRow>
             );
           })
         ) : (
@@ -519,6 +527,83 @@ export function BucketDetail({ g, data, onClose, onMove, onEdit, onSwitch }) {
     </DetailShell>
   );
 }
+
+const ambiguousWithdrawal = (entry) => entry.type === "withdrawal" && !entry.balanceField;
+function OriginalWithdrawal({ entry, value, onChange }) {
+  if (!ambiguousWithdrawal(entry)) return null;
+  return <SelectField label="Original action" value={value} onChange={(e) => onChange(e.target.value)}
+    hint="Older withdrawals could mean either action. Choose the original action so the balance is corrected accurately.">
+    <option value="">Choose original action</option>
+    <option value="withdrawal">Released money from the bucket</option>
+    <option value="spend">Purchase paid from the bucket</option>
+  </SelectField>;
+}
+
+export function BucketEntrySheet({ goal, goals, entry, onClose, onSave }) {
+  const [goalId, setGoalId] = React.useState(goal.id);
+  const [type, setType] = React.useState(entry.balanceField === "spent" ? "spend" : entry.type);
+  const [amount, setAmount] = React.useState(String(entry.amount));
+  const [date, setDate] = React.useState(entry.date);
+  const [note, setNote] = React.useState(entry.note || "");
+  const [originalAction, setOriginalAction] = React.useState("");
+  const op = useOperationId();
+  const selected = goals.find((g) => g.id === goalId);
+  const input = { type, amount: parseDecimal(amount), date, note: note.trim() };
+  let preview, issue = "";
+  try {
+    if (!selected) throw new Error("Choose an available bucket.");
+    preview = bucketEntryChange(goal, entry, input, goalId !== goal.id ? selected : null, originalAction || null);
+  } catch (e) { issue = e.message; }
+  return <Sheet title="Edit activity" onClose={onClose} draft={{ goalId, type, amount, date, note, originalAction }}>
+    {(close) => <>
+      <OriginalWithdrawal entry={entry} value={originalAction} onChange={(value) => { setOriginalAction(value); if (value) setType(value); }} />
+      <SelectField label="Bucket" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+        {goals.filter((g) => !g.archived || g.id === goal.id).map((g) => <option value={g.id} key={g.id}>{g.name}</option>)}
+      </SelectField>
+      <SelectField label="Action" value={type} onChange={(e) => setType(e.target.value)}>
+        <option value="deposit">Deposit</option><option value="withdrawal">Withdraw</option><option value="spend">Spend</option>
+      </SelectField>
+      <AmountField value={amount} onChange={setAmount} />
+      <Field label="Date" type="date" value={date} required onChange={(e) => setDate(e.target.value)} />
+      <Field label="Note · optional" value={note} onChange={(e) => setNote(e.target.value)} />
+      {preview && <div className="c-form-preview"><span>{goal.name} after correction</span><span><Money value={balanceOf(preview.sourcePatch)} /> SAR</span></div>}
+      {preview?.targetPatch && <div className="c-form-preview"><span>{selected.name} after correction</span><span><Money value={balanceOf(preview.targetPatch)} /> SAR</span></div>}
+      {goalId !== goal.id && <p className="c-form-note">This moves the existing entry and corrects both bucket balances.</p>}
+      <SheetSave disabled={!!issue} disabledReason={issue} onClick={async () => {
+        await onSave(goal.id, entry, input, goalId, op, originalAction || null);
+        close();
+      }}>Save changes</SheetSave>
+    </>}
+  </Sheet>;
+}
+
+export function DeleteBucketEntry({ goal, entry, onClose, onSave }) {
+  const [originalAction, setOriginalAction] = React.useState("");
+  const [busy, setBusy] = React.useState(false), [error, setError] = React.useState("");
+  const locked = React.useRef(false), opener = React.useRef(document.activeElement);
+  const op = useOperationId();
+  let preview, issue = "";
+  try { preview = bucketEntryChange(goal, entry, null, null, originalAction || null); }
+  catch (e) { issue = e.message; }
+  return <Confirmation open title="Delete activity?" actionLabel="Delete entry" onCancel={onClose}
+    busy={busy} disabled={!!issue} error={error || (!ambiguousWithdrawal(entry) || originalAction ? issue : "")} returnFocus={opener}
+    description={`${entry.note || "Recorded entry"} · ${fmt(entry.amount)} SAR · ${fmtDate(entry.date)}. This removes the entry and reverses its effect on ${goal.name}.`}
+    onConfirm={async () => {
+      if (locked.current) return;
+      locked.current = true; setBusy(true); setError("");
+      try {
+        await onSave(goal.id, entry, null, goal.id, op, originalAction || null);
+        window.dispatchEvent(new Event("keela:saved"));
+        onClose();
+        document.querySelector('.c-detail-scroll h1')?.focus();
+      } catch (e) { setError(e.message || "Couldn’t delete this entry. Try again."); }
+      finally { locked.current = false; setBusy(false); }
+    }}>
+    <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0 }}><OriginalWithdrawal entry={entry} value={originalAction} onChange={setOriginalAction} /></fieldset>
+    {preview && <p className="c-form-note">Balance after deletion: {fmt(balanceOf(preview.sourcePatch))} SAR</p>}
+  </Confirmation>;
+}
+
 export function BucketSheet({ goal, goals, mode, onClose, onSave }) {
   const [goalId, setGoalId] = React.useState(goal.id),
     [amount, setAmount] = React.useState(""),

@@ -39,7 +39,7 @@ export function SheetFooter({ children }) {
 // The form remains mounted beneath a confirmation. Its state and scroll position
 // survive Keep editing, a rejected write, or a reconnect.
 export function Confirmation({ open, title, description, actionLabel, cancelLabel = 'Cancel',
-  onCancel, onConfirm, busy = false, error = '', returnFocus, destructive = true }) {
+  onCancel, onConfirm, busy = false, error = '', returnFocus, destructive = true, disabled = false, children }) {
   const { transition, reduced } = useTransition('fade');
   const viewport = useVisibleViewport();
   const [present, setPresent] = React.useState(open);
@@ -61,10 +61,11 @@ export function Confirmation({ open, title, description, actionLabel, cancelLabe
           onAnimationComplete={() => { if (!open) setPresent(false); }}>
           <AlertDialog.Title className="c-sheet-title">{title}</AlertDialog.Title>
           <AlertDialog.Description className="c-confirm-description">{description}</AlertDialog.Description>
+          {children}
           {error && <p className="c-sheet-error" role="alert">{error}</p>}
           <div className="c-confirm-actions">
             <AlertDialog.Cancel asChild><button className="c-button" disabled={busy}>{cancelLabel}</button></AlertDialog.Cancel>
-            <button className={`c-button ${destructive ? 'c-danger' : 'c-primary'}`} disabled={busy} onClick={onConfirm}>
+            <button className={`c-button ${destructive ? 'c-danger' : 'c-primary'}`} disabled={busy || disabled} onClick={onConfirm}>
               {busy ? 'Working…' : actionLabel}
             </button>
           </div>

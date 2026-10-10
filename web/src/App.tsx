@@ -11,6 +11,7 @@ import {
   createHolding,
   savePreferences,
   saveCategoryBudget,
+  changeBucketEntry,
 } from "./data/writes";
 import { bucketMovement, holdingMovement } from "./lib/money.mjs";
 import { db } from "./lib/firebase";
@@ -35,6 +36,8 @@ import {
   BucketDetail,
   BucketSheet,
   EditBucketSheet,
+  BucketEntrySheet,
+  DeleteBucketEntry,
 } from "./screens/Buckets";
 import {
   Assets,
@@ -91,6 +94,7 @@ type SheetState = { kind: 'tx'; tx: DisplayRecord | null }
   | { kind: 'upcoming' | 'wish'; item: DisplayRecord | null }
   | { kind: 'bucketEdit'; goalId: string | null }
   | { kind: 'bucketMove'; goalId: string; mode: string }
+  | { kind: 'bucketEntry'; goalId: string; entry: DisplayRecord; action: string }
   | { kind: 'catBudget'; cat: string; cap: number }
   | { kind: 'pfEdit'; portfolio: DisplayRecord | null | undefined }
   | { kind: 'holdEdit'; holding: DisplayRecord | null; portfolioId: string | null }
@@ -482,6 +486,7 @@ export default function App() {
             onEdit={(id: string) =>
               setSheet({ kind: "bucketEdit", goalId: id })
             }
+            onEntry={(goalId: string, entry: DisplayRecord, action: string) => setSheet({ kind: "bucketEntry", goalId, entry, action })}
           />
         );
     } else if (overlay?.kind === "portfolio") {
@@ -570,6 +575,12 @@ export default function App() {
           onSave={moveBucket}
         />
       );
+    else if (sheet?.kind === "bucketEntry") {
+      const goal = goals.find((g: any) => g.id === sheet.goalId);
+      if (goal) sheetEl = sheet.action === "delete"
+        ? <DeleteBucketEntry goal={goal} entry={sheet.entry} onClose={closeSheet} onSave={changeBucketEntry} />
+        : <BucketEntrySheet goal={goal} goals={goals} entry={sheet.entry} onClose={closeSheet} onSave={changeBucketEntry} />;
+    }
     else if (sheet?.kind === "bucketEdit") {
       const blank = {
         id: null,

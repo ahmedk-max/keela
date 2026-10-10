@@ -75,11 +75,52 @@ export function bucketMovement(g, input) {
     patch,
     entry: {
       type: input.type,
+      balanceField: input.type === "spend" ? "spent" : "allocated",
       amount,
       date: input.date,
       note: input.note?.trim() || null,
     },
   };
+}
+
+// Older bridge withdrawals meant purchases, while app withdrawals released an
+// allocation. Require an explicit original action for those unmarked records.
+export function bucketEntryField(entry, originalAction) {
+  if (entry.type === "deposit") return "allocated";
+  if (entry.type === "spend") return "spent";
+  if (entry.type !== "withdrawal") throw new Error("This activity type cannot be changed.");
+  if (["allocated", "spent"].includes(entry.balanceField)) return entry.balanceField;
+  if (originalAction === "spend") return "spent";
+  if (originalAction === "withdrawal") return "allocated";
+  throw new Error("Choose how the original withdrawal was recorded.");
+}
+
+// Apply only the changed entry's effect: historical opening balances and all
+// unrelated activity must survive a correction. Validate the final totals, so
+// replacing a deposit does not temporarily remove funds spent by later entries.
+export function bucketEntryChange(source, before, input, target = null, originalAction = null) {
+  for (const g of [source, ...(target ? [target] : [])]) {
+    if (!g) throw new Error("This bucket is no longer available.");
+    if (g.archived) throw new Error("Restore this bucket before changing its activity.");
+  }
+  const totals = (g) => ({ allocated: Math.round((g.allocated || 0) * 100), spent: Math.round((g.spent || 0) * 100) });
+  const from = totals(source), to = target ? totals(target) : from;
+  const field = bucketEntryField(before, originalAction);
+  const old = Math.round(positiveMoney(before.amount) * 100);
+  from[field] -= before.type === "withdrawal" && field === "allocated" ? -old : old;
+  let entry = null;
+  if (input) {
+    // Use the same validation and canonical entry shape as a new movement.
+    entry = bucketMovement({ allocated: positiveMoney(input.amount), spent: 0 }, input).entry;
+    const amount = Math.round(entry.amount * 100);
+    to[entry.balanceField] += entry.type === "withdrawal" ? -amount : amount;
+  }
+  const validate = (g) => {
+    if (![g.allocated, g.spent, g.allocated - g.spent].every((n) => Number.isSafeInteger(n) && n >= 0))
+      throw new Error("This change would leave a bucket below zero. Check the amount or its later activity.");
+    return { allocated: g.allocated / 100, spent: g.spent / 100 };
+  };
+  return { sourcePatch: validate(from), targetPatch: target ? validate(to) : null, entry };
 }
 export function holdingMovement(h, input) {
   if (!h) throw new Error("This holding is no longer available.");

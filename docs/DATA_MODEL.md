@@ -40,9 +40,24 @@ _(from `expense_logs`; `source` is new — tracks who logged it)_
 ```
 goal:  { name, target, allocated, spent, status: "active"|"completed"|"paused",
          targetDate, icon, color, createdAt }
-entry: { type: "deposit"|"withdrawal", amount, note, date }
+entry: { type: "deposit"|"withdrawal"|"spend", amount, note, date,
+         balanceField?: "allocated"|"spent", revision?: number, createdAt?, updatedAt? }
 ```
 _(from `savings_goals` + `goal_logs`)_
+
+Bucket activity supports editing, deleting and moving an entry to another bucket.
+Every correction updates the affected bucket totals and entry in a single Firestore
+transaction. It adjusts only that entry's effect, preserving any opening balance.
+Edits retain metadata and increment `revision`; stale forms must reopen before saving.
+`goals/{sourceId}/entryChanges/{operationId}` holds the correction request, original
+entry and previous totals, providing an audit record and an idempotent retry receipt.
+These receipts are not activity entries and are not included in the activity subscription.
+
+Deposits increase `allocated`, app withdrawals reduce `allocated`, and spending
+increases `spent`. Older bridge withdrawals increased `spent` instead. New entries
+record `balanceField` to disambiguate this; unmarked historical withdrawals require
+the user to choose their original meaning before editing/deleting. Bucket balances
+must remain nonnegative, and archived buckets must be restored before corrections.
 
 ## `portfolios/{id}` — investment portfolios (the grouping above holdings)
 ```
